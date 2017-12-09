@@ -242,7 +242,7 @@ class Knrm(BaseNN):
                     scoredict = {}
                     metricdict = {}
                     total_loss = 0
-                    batcn_cnt = 0
+                    batch_cnt = 0
                     for BATCH in self.val_data_generator.pointwise_generate(val_pair_file_path_list[filenum], self.batch_size, with_idf=True):
                         tmp_o = 0
                         batch_cnt = batch_cnt + 1
