@@ -92,7 +92,7 @@ class DataGenerator(Configurable):
     def pointwise_generate(self, pair_stream_dir, batch_size, with_label=True, with_idf=False):
         if self.qfile_list == '':
             self.qfile_list = get_file_list(pair_stream_dir)
-            # print len(self.qfile_list)
+            print len(self.qfile_list), '!!!'
 
         qfile_list = self.qfile_list
 
@@ -165,6 +165,7 @@ class DataGenerator(Configurable):
     def make_pair(self, pair_stream_dir, query_per_iter):
         if self.qfile_list == '':
             self.qfile_list = get_file_list(pair_stream_dir)
+            print '!!!!', len(self.qfile_list)
         qfile_list = self.qfile_list
         # print '!!!!', len(qfile_list)
         uid_doc = {}

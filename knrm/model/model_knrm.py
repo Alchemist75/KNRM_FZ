@@ -51,7 +51,9 @@ class Knrm(BaseNN):
         self.W1 = Knrm.weight_variable([self.n_bins, 1])
         self.b1 = tf.Variable(tf.zeros([1]))
         self.data_generator.setdict(self.word_dict,self.idf_dict)
-        self.val_data_generator.setdict(self.word_dict,self.idf_dict)
+        for i in range(len(self.val_data_generator)):
+            self.val_data_generator[i].setdict(self.word_dict,self.idf_dict)
+        # self.val_data_generator.setdict(self.word_dict,self.idf_dict)
         self.test_data_generator.setdict(self.word_dict,self.idf_dict)
         assert self.metrics != 'None'
         self.metriclist = self.metrics.strip().split(';')
@@ -277,7 +279,8 @@ class Knrm(BaseNN):
                                 metricdict[i] = 0
                             metricdict[i]+=metrics[i]
                     outstr = "Validation_"+str(filenum)+" METRICS: "
-                    outstr += "loss: "+str(total_loss/batch_cnt) ############
+                    assert batch_cnt > 0
+                    outstr += "loss: %.5f "%(total_loss/batch_cnt ) ############
                     for i in metricdict.keys():
                         metricdict[i]/=len(scoredict.keys())
                         outstr += str(i) + ": " + str(metricdict[i])+ ';\t'
