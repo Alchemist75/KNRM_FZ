@@ -12,7 +12,7 @@ from traitlets import (
     Int,
     Float,
     Bool,
-)
+    Unicode)
 
 import sys
 
@@ -29,13 +29,16 @@ class BaseNN(Configurable):
     max_epochs = Float(10, help="maximum number of epochs").tag(config=True)
     embedding_size = Int(300, help="embedding dimension").tag(config=True)
     vocabulary_size = Int(20, help="vocabulary size").tag(config=True)
+    valid_in_list = Unicode('None', help="initial valid.").tag(config=True)
 
     def __init__(self, **kwargs):
         super(BaseNN, self).__init__(**kwargs)
 
         # generator
         self.data_generator = DataGenerator(config=self.config)
-        self.val_data_generator = DataGenerator(config=self.config)
+        self.val_data_generator = []
+        for i in range(len(self.valid_in_list.split(';'))):
+            self.val_data_generator.append(DataGenerator(config=self.config))
         self.test_data_generator = DataGenerator(config=self.config)
 
     @staticmethod

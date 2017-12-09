@@ -79,6 +79,7 @@ class DataGenerator(Configurable):
         self.m_title_pool = np.array(None)
         if self.load_litle_pool and self.neg_sample:
             self._load_title_pool()
+        self.qfile_list = ''
         print "min_score_diff: ", self.min_score_diff
         print "generator's vocabulary size: ", self.vocabulary_size
 
@@ -89,8 +90,11 @@ class DataGenerator(Configurable):
             logging.info('loaded [%d] title pool', self.m_title_pool.shape[0])
 
     def pointwise_generate(self, pair_stream_dir, batch_size, with_label=True, with_idf=False):
+        if self.qfile_list == '':
+            self.qfile_list = get_file_list(pair_stream_dir)
+            # print len(self.qfile_list)
 
-        qfile_list = get_file_list(pair_stream_dir)
+        qfile_list = self.qfile_list
 
         l_q = []
         l_qid = []
@@ -159,8 +163,10 @@ class DataGenerator(Configurable):
         logging.info('point wise generator to an end')
 
     def make_pair(self, pair_stream_dir, query_per_iter):
-        
-        qfile_list = get_file_list(pair_stream_dir)
+        if self.qfile_list == '':
+            self.qfile_list = get_file_list(pair_stream_dir)
+        qfile_list = self.qfile_list
+        # print '!!!!', len(qfile_list)
         uid_doc = {}
         qid_query = {}
         qid_label_uid = {}

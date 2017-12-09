@@ -32,7 +32,7 @@ class Knrm(BaseNN):
     valid_in_list = Unicode('None', help="initial valid.").tag(config=True)
     metrics = Unicode('None', help="Metrics.").tag(config=True)
     lamb = Float(0.5, help="guassian_sigma = lamb * bin_size").tag(config=True)
-    learning_rate = Float(0.003, help="learning rate, default is 0.001").tag(config=True)
+    learning_rate = Float(0.001, help="learning rate, default is 0.001").tag(config=True)
     epsilon = Float(0.00001, help="Epsilon for Adam").tag(config=True)
     def __init__(self, **kwargs):
         super(Knrm, self).__init__(**kwargs)
@@ -243,7 +243,7 @@ class Knrm(BaseNN):
                     metricdict = {}
                     total_loss = 0
                     batch_cnt = 0
-                    for BATCH in self.val_data_generator.pointwise_generate(val_pair_file_path_list[filenum], self.batch_size, with_idf=True):
+                    for BATCH in self.val_data_generator[filenum].pointwise_generate(val_pair_file_path_list[filenum], self.batch_size, with_idf=True):
                         tmp_o = 0
                         batch_cnt = batch_cnt + 1
                         X_val, Y_val = BATCH
