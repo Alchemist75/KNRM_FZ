@@ -1,0 +1,1 @@
+python ./knrm/model/model_knrm.py try.config --train 
