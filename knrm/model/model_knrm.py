@@ -278,7 +278,7 @@ class Knrm(BaseNN):
         for filenum in range(len(val_pair_file_path_list)):
             scoredict = {}
             metricdict = {}
-            total_loss = 0
+            # total_loss = 0
             batch_cnt = 0
             for BATCH in self.val_data_generator[
                 filenum].pointwise_generate():  # val_pair_file_path_list[filenum], self.batch_size, with_idf=True):
@@ -296,8 +296,8 @@ class Knrm(BaseNN):
                                  input_train_mask_pos: M_pos,
                                  input_train_mask_neg: M_neg}
 
-                l, o_p = sess.run([loss, o_pos], feed_dict=val_feed_dict)
-                total_loss += l
+                o_p = sess.run([o_pos], feed_dict=val_feed_dict)
+                # total_loss += l
                 for num, i in enumerate(X_val['qid']):
                     if not scoredict.has_key(X_val['qid'][num]):
                         scoredict[X_val['qid'][num]] = {}
@@ -316,7 +316,7 @@ class Knrm(BaseNN):
                     metricdict[i] += metrics[i]
             # outstr = "Validation_"+str(filenum)+" METRICS: "
             assert batch_cnt > 0
-            valid_loss = total_loss / batch_cnt
+            # valid_loss = total_loss / batch_cnt
             # outstr += "loss: %.5f "%(total_loss/batch_cnt ) ############
             # for i in metricdict.keys():
             #     metricdict[i]/=len(scoredict.keys())
@@ -325,7 +325,7 @@ class Knrm(BaseNN):
 
             print '[%s]' % time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
             print '[Eval] @ epoch: %d,' % (epoch + 1),
-            print 'valid loss: %.5f' % valid_loss,
+            # print 'valid loss: %.5f' % valid_loss,
             print ', '.join(['%s: %.5f' % (k, metricdict[k] / len(scoredict)) for k in metricdict])
 
     def test_in_train(self, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d, train_input_q_weights,
