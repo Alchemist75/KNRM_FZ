@@ -40,20 +40,14 @@ from numpy import genfromtxt
 import logging
 from io import StringIO
 import sys
-reload(sys)
-sys.setdefaultencoding('UTF8')
+# reload(sys)
+# sys.setdefaultencoding('UTF8')
 
-def get_file_list(pair_stream_dir):
-    qfile_list = []
-    for dirpath, dirnames, filenames in os.walk(pair_stream_dir):
-        for fn in filenames:
-            if fn.endswith('.txt'):
-                qfile_list.append(os.path.join(dirpath, fn))
-    return qfile_list
+
 
 class DataGenerator(Configurable):
-    title_in = Unicode('/bos/data1/sogou16/data/training/1m_title.pad_t50',
-                       help='titles term id csv, must be padded').tag(config=True)
+    # title_in = Unicode('/bos/data1/sogou16/data/training/1m_title.pad_t50',
+    #                    help='titles term id csv, must be padded').tag(config=True)
     max_q_len = Int(10, help='max q len').tag(config=True)
     max_d_len = Int(50, help='max document len').tag(config=True)
     query_per_iter = Int(2, help="queries").tag(config=True)
@@ -74,28 +68,34 @@ class DataGenerator(Configurable):
         self.word_dict = word_dict
         self.idf_dict = idf_dict
 
-    def __init__(self, pair_stream_dir, **kwargs):
+    def __init__(self, pair_stream_dir, isPointwise, word_dict, idf_dict, **kwargs):
         super(DataGenerator, self).__init__(**kwargs)
-        self.m_title_pool = np.array(None)
-        if self.load_litle_pool and self.neg_sample:
-            self._load_title_pool()
-        # self.qfile_list = ''
+        # self.m_title_pool = np.array(None)
+        # if self.load_litle_pool and self.neg_sample:
+        #     self._load_title_pool()
+        self.setdict(word_dict, idf_dict)
         self.pair_stream_dir = pair_stream_dir
-        self.qfile_list = get_file_list(pair_stream_dir)
+        self.qfile_list = self.get_file_list()
+        if isPointwise:
+            self.batch_list = self.pointwise_batch_generate(self.batch_size, with_idf=True)
         print "min_score_diff: ", self.min_score_diff
         print "generator's vocabulary size: ", self.vocabulary_size
 
-    def _load_title_pool(self):
-        if self.title_in:
-            logging.info('start loading title pool [%s]', self.title_in)
-            self.m_title_pool = genfromtxt(self.title_in, delimiter=',',  dtype=int,)
-            logging.info('loaded [%d] title pool', self.m_title_pool.shape[0])
+    def get_file_list(self):
+        qfile_list = []
+        for dirpath, dirnames, filenames in os.walk(self.pair_stream_dir):
+            for fn in filenames:
+                if fn.endswith('.txt'):
+                    qfile_list.append(os.path.join(dirpath, fn))
+        return qfile_list
 
-    def pointwise_generate(self, pair_stream_dir, batch_size, with_label=True, with_idf=False):
-        # if self.qfile_list == '':
-        #     self.qfile_list = get_file_list(pair_stream_dir)
-            # print len(self.qfile_list), '!!!'
+    # def _load_title_pool(self):
+    #     if self.title_in:
+    #         logging.info('start loading title pool [%s]', self.title_in)
+    #         self.m_title_pool = genfromtxt(self.title_in, delimiter=',',  dtype=int,)
+    #         logging.info('loaded [%d] title pool', self.m_title_pool.shape[0])
 
+    def pointwise_batch_generate(self, batch_size, with_idf=False):
         qfile_list = self.qfile_list
 
         l_q = []
@@ -104,77 +104,83 @@ class DataGenerator(Configurable):
         l_d = []
         l_idf = []
         l_y = []
+        batch_list = []
+
         for f in qfile_list:
-            pair_stream = open(f,"r")
-            for line in pair_stream:
-            
-                qid, query, uid, doc, label = line.split('\t')
-                qid = qid.strip()
-                uid = uid.strip()
-                query = char2list(query.strip().split(), self.word_dict)
-                idf = getidf(query, self.idf_dict)
-                doc = char2list(doc.strip().split(), self.word_dict)
-                label = int(label)
-                l_q.append(query)
-                l_d.append(doc)
-                l_y.append(label)
-                l_qid.append(qid)
-                l_uid.append(uid)
-                l_idf.append(idf)
+            with open(f, "r") as pair_stream:
+                for line in pair_stream:
+                    qid, query, uid, doc, label = line.split('\t')
+                    qid = qid.strip()
+                    uid = uid.strip()
+                    query = char2list(query.strip().split(), self.word_dict)
+                    idf = getidf(query, self.idf_dict)
+                    doc = char2list(doc.strip().split(), self.word_dict)
+                    label = int(label)
+                    l_q.append(query)
+                    l_d.append(doc)
+                    l_y.append(label)
+                    l_qid.append(qid)
+                    l_uid.append(uid)
+                    l_idf.append(idf)
 
-                if len(l_q) >= batch_size:
-                    Q = np.zeros([batch_size,self.max_q_len],dtype=np.int32)
-                    for num,i in enumerate(l_q):
-                        qlength = min(self.max_q_len,len(i))
-                        Q[num][:qlength] = l_q[num][:qlength]
-                    D = np.zeros([batch_size,self.max_d_len],dtype=np.int32)
-                    for num,i in enumerate(l_d):
-                        dlength = min(self.max_d_len,len(i))
-                        D[num][:dlength] = l_d[num][:dlength]
-                    if with_idf:
-                        IDF = np.zeros([batch_size,self.max_q_len],dtype=float)
-                        for num,i in enumerate(l_idf):
-                            ilength = min(self.max_q_len,len(i))
-                            IDF[num][:ilength] = l_idf[num][:ilength]
-                    else:
-                        IDF = np.ones(Q.shape,dtype=float)
+                    if len(l_q) >= batch_size:
+                        Q = np.zeros([batch_size, self.max_q_len], dtype=np.int32)
+                        for num, i in enumerate(l_q):
+                            qlength = min(self.max_q_len, len(i))
+                            Q[num][:qlength] = l_q[num][:qlength]
+                        D = np.zeros([batch_size, self.max_d_len], dtype=np.int32)
+                        for num, i in enumerate(l_d):
+                            dlength = min(self.max_d_len, len(i))
+                            D[num][:dlength] = l_d[num][:dlength]
+                        if with_idf:
+                            IDF = np.zeros([batch_size, self.max_q_len], dtype=float)
+                            for num, i in enumerate(l_idf):
+                                ilength = min(self.max_q_len, len(i))
+                                IDF[num][:ilength] = l_idf[num][:ilength]
+                        else:
+                            IDF = np.ones(Q.shape, dtype=float)
 
-                    Y = l_y
-                    X = {self.q_name: Q, self.d_name: D, self.idf_name: IDF, "qid":l_qid , "uid":l_uid}
-                    yield X, Y
-                    l_q, l_d, l_y, l_idf, l_qid, l_uid = [], [], [], [],[],[]
+                        Y = l_y
+                        X = {self.q_name: Q, self.d_name: D, self.idf_name: IDF, "qid": l_qid, "uid": l_uid}
+                        # yield X, Y
+                        batch_list.append([X, Y])
+                        l_q, l_d, l_y, l_idf, l_qid, l_uid = [], [], [], [], [], []
+
         if l_q:
-            Q = np.zeros([len(l_q),self.max_q_len],dtype=int)
-            for num,i in enumerate(l_q):
-                qlength = min(self.max_q_len,len(i))
+            Q = np.zeros([len(l_q), self.max_q_len], dtype=int)
+            for num, i in enumerate(l_q):
+                qlength = min(self.max_q_len, len(i))
                 Q[num][:qlength] = l_q[num][:qlength]
-            D = np.zeros([len(l_q),self.max_d_len],dtype=int)
-            for num,i in enumerate(l_d):
-                dlength = min(self.max_d_len,len(i))
+            D = np.zeros([len(l_q), self.max_d_len], dtype=int)
+            for num, i in enumerate(l_d):
+                dlength = min(self.max_d_len, len(i))
                 D[num][:dlength] = l_d[num][:dlength]
             if with_idf:
-                IDF = np.zeros([batch_size,self.max_q_len],dtype=float)
-                for num,i in enumerate(l_idf):
-                    ilength = min(self.max_q_len,len(i))
+                IDF = np.zeros([batch_size, self.max_q_len], dtype=float)
+                for num, i in enumerate(l_idf):
+                    ilength = min(self.max_q_len, len(i))
                     IDF[num][:ilength] = l_idf[num][:ilength]
             else:
-                IDF = np.ones(Q.shape,dtype=float)
+                IDF = np.ones(Q.shape, dtype=float)
             Y = l_y
-            X = {self.q_name: Q, self.d_name: D, self.idf_name: IDF, "qid":l_qid , "uid":l_uid}
-            yield X, Y
+            X = {self.q_name: Q, self.d_name: D, self.idf_name: IDF, "qid": l_qid, "uid": l_uid}
+            # yield X, Y
+            batch_list.append([X, Y])
         logging.info('point wise generator to an end')
+        return batch_list
 
-    def make_pair(self, pair_stream_dir, query_per_iter):
-        # if self.qfile_list == '':
-        #     self.qfile_list = get_file_list(pair_stream_dir)
-            # print '!!!!', len(self.qfile_list)
+    def pointwise_generate(self):
+        for X, Y in self.batch_list:
+            yield X, Y
+
+    def make_pair(self, query_per_iter):
         qfile_list = self.qfile_list
-        # print '!!!!', len(qfile_list)
+
         uid_doc = {}
         qid_query = {}
         qid_label_uid = {}
         qid_idf = {}
-        #get data
+
         qfiles = random.sample(qfile_list, query_per_iter)
         for fn in qfiles:
             with open(fn) as file:
@@ -194,7 +200,7 @@ class DataGenerator(Configurable):
                     if label not in qid_label_uid[qid]:
                         qid_label_uid[qid][label] = []
                     qid_label_uid[qid][label].append(uid)
-        
+
         #make pair
         pair_list = []
         for qid in qid_label_uid:
@@ -210,10 +216,10 @@ class DataGenerator(Configurable):
                         for dn in qid_label_uid[qid][ll]:
                             pair_list.append([qid, dp, dn])
         return qid_query, uid_doc, qid_label_uid, pair_list, qid_idf
-    
-    def pairwise_reader(self, pair_stream_dir, batch_size, with_idf=False):
+
+    def pairwise_reader(self, with_idf=False):
         while True:
-            qid_query, uid_doc, qid_label_uid, pair_list, qid_idf = self.make_pair(pair_stream_dir, self.query_per_iter)
+            qid_query, uid_doc, qid_label_uid, pair_list, qid_idf = self.make_pair(self.query_per_iter)
             print '[%s]' % time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
             print 'Pair Instance Count:', len(pair_list)
             for _i in range(self.batch_per_iter):
@@ -246,49 +252,3 @@ class DataGenerator(Configurable):
                     IDF = np.ones(Xidf.shape,dtype=float)
                 X = {self.q_name: Xq, self.d_name: Xd, self.idf_name: IDF, self.aux_d_name: Xd_aux}
                 yield X
-
-
-# if __name__ == '__main__':
-#     from deeplearning4ir.utils import set_basic_log, load_py_config
-#     set_basic_log()
-#     if 4 != len(sys.argv):
-#         print "I test generator"
-#         print "3 para: config + click pair with int term + batch_size"
-#         DataGenerator.class_print_help()
-#         sys.exit(-1)
-#     conf = load_py_config(sys.argv[1])
-#     generator = DataGenerator(config=conf)
-#
-#     pair_stream = open(sys.argv[2])
-#     batch_size = int(sys.argv[3])
-#     X, Y = next(generator.pointwise_generate(pair_stream, batch_size, False))
-#     a = np.ones(1)
-#
-#     print "point wise Y:\n %s" % (np.array2string(Y))
-#     print "\n\n"
-#     print "q: \n %s" % (np.array2string(X[generator.q_name]))
-#     print "\n\n"
-#     print "d: \n %s" % (np.array2string(X[generator.d_name]))
-#     print "\n\n"
-#     X, Y = next(generator.pairwise_generate(pair_stream, batch_size))
-#
-#     print "pair wise Y:\n %s" % (np.array2string(Y))
-#     print "\n\n"
-#     print "q: \n %s" % (np.array2string(X[generator.q_name]))
-#     print "\n\n"
-#     print "d: \n %s" % (np.array2string(X[generator.d_name]))
-#     print "\n\n"
-#     print "aux d: \n %s" % (np.array2string(X[generator.aux_d_name]))
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -47,7 +47,8 @@ def read_embedding(filename):
         # if cnt == 1000:
         #     break
     embed_array = np.random.normal(size=[cnt+1,len(embed[1])])
-    for i in range(1,cnt+1):
+    # for i in range(1, cnt+1):
+    for i in embed:
         embed_array[i] = np.array(embed[i]) 
 
     print '[%s]'%time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '[%s]\n\tEmbedding size: %d' % (filename, len(embed))

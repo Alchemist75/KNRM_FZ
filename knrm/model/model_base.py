@@ -13,14 +13,16 @@ from traitlets import (
     Float,
     Bool,
     Unicode)
-
+from knrm.utils import char2list, getidf, read_embedding
 import sys
 
-reload(sys)
-sys.setdefaultencoding('UTF8')
+# reload(sys)
+# sys.setdefaultencoding('UTF8')
 
 
 class BaseNN(Configurable):
+
+    emb_in = Unicode('None', help="initial embedding. Terms should be hashed to ids.").tag(config=True)
     n_bins = Int(11, help="number of kernels (including exact match)").tag(config=True)
     max_q_len = Int(10, help='max q len').tag(config=True)
     max_d_len = Int(50, help='max document len').tag(config=True)
@@ -37,13 +39,16 @@ class BaseNN(Configurable):
 
     def __init__(self, **kwargs):
         super(BaseNN, self).__init__(**kwargs)
-
+        self.embed, self.vocabulary_size, self.embedding_size, self.word_dict, self.idf_dict = read_embedding(self.emb_in)
         # generator
-        self.data_generator = DataGenerator(config=self.config, pair_stream_dir=self.train_in)
+        self.data_generator = DataGenerator(config=self.config, pair_stream_dir=self.train_in, isPointwise=False,
+                                            word_dict=self.word_dict, idf_dict=self.idf_dict)
         self.val_data_generator = []
         for i in range(len(self.valid_in_list.split(';'))):
-            self.val_data_generator.append(DataGenerator(config=self.config, pair_stream_dir=self.valid_in_list[i]))
-        self.test_data_generator = DataGenerator(config=self.config, pair_stream_dir=self.test_in)
+            self.val_data_generator.append(DataGenerator(config=self.config, pair_stream_dir=self.valid_in_list.split(';')[i],
+                                                         isPointwise=True, word_dict = self.word_dict, idf_dict = self.idf_dict))
+        self.test_data_generator = DataGenerator(config=self.config, pair_stream_dir=self.test_in, isPointwise=True,
+                                                word_dict=self.word_dict, idf_dict=self.idf_dict)
 
     @staticmethod
     def kernal_mus(n_kernels, use_exact):
