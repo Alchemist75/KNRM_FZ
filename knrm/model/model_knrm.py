@@ -34,6 +34,8 @@ class Knrm(BaseNN):
     lamb = Float(0.5, help="guassian_sigma = lamb * bin_size").tag(config=True)
     learning_rate = Float(0.001, help="learning rate, default is 0.001").tag(config=True)
     epsilon = Float(0.00001, help="Epsilon for Adam").tag(config=True)
+
+
     def __init__(self, **kwargs):
         super(Knrm, self).__init__(**kwargs)
 
@@ -45,7 +47,7 @@ class Knrm(BaseNN):
         assert self.emb_in != 'None'
         self.embed, self.vocabulary_size, self.embedding_size, self.word_dict, self.idf_dict = read_embedding(self.emb_in)
         self.embeddings = tf.Variable(tf.constant(self.embed, dtype='float32', shape=[self.vocabulary_size + 1, self.embedding_size]))
-        #print "Initialized embeddings with {0}".format(self.emb_in)
+        # print "Initialized embeddings with {0}".format(self.emb_in)
         print "Initialized embeddings!"
         # Model parameters for feedfoward rank NN
         self.W1 = Knrm.weight_variable([self.n_bins, 1])
@@ -133,14 +135,14 @@ class Knrm(BaseNN):
         # return some mid result and final matching score.
         return (sim, feats_flat), o
 
-    def train(self, train_size, load_model=False):
+    def train(self, train_size, checkpoint_dir, load_model=False):
 
         # PLACEHOLDERS
         # This is where training samples and labels are fed to the graph.
         # These placeholder nodes will be fed a batch of training data at each
         # training step using the {feed_dict} argument to the Run() call below.
 
-        train_pair_file_path = self.train_in 
+        train_pair_file_path = self.train_in
         val_pair_file_path_list = self.valid_in_list.strip().split(";")
         test_pair_file_path = self.test_in
         # nodes to hold mu sigma
@@ -182,7 +184,7 @@ class Knrm(BaseNN):
         o_neg = o_all[:,1]
         print o_pos, o_neg
         loss = tf.reduce_mean(tf.maximum(0.0, 1 - o_pos + o_neg))
-        
+
         # optimizer
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate, epsilon=self.epsilon).minimize(loss)
 
@@ -190,11 +192,11 @@ class Knrm(BaseNN):
 
         with tf.Session() as sess:
 
-            #saver = tf.train.Saver()
-            start_time = time.time()
+            saver = tf.train.Saver()
+            # start_time = time.time()
 
             # Run all the initializers to prepare the trainable parameters.
-            '''
+
             if not load_model:
                 print "Initializing a new model..."
                 tf.initialize_all_variables().run()
@@ -208,22 +210,24 @@ class Knrm(BaseNN):
                 else:
                     print "no data found"
                     exit(-1)
-            '''
+
             print "Initializing a new model..."
             tf.initialize_all_variables().run()
             print('New model initialized!')
 
             # Loop through training steps.
-            step = 0
+            # step = 0
             for epoch in range(int(self.max_epochs)):
-                print "EPOCH: "+str(epoch)
-                batch_step = 0 
+                # print "EPOCH: "+str(epoch)
+
                 #pair_stream = open(train_pair_file_path)
                 ##########  TRAIN  ###########
-                for BATCH in self.data_generator.pairwise_reader(train_pair_file_path, self.batch_size, with_idf=True):
-                    batch_step += 1 
-                    if (batch_step>self.epoch_size) : break
-                    step += 1
+                # for i in range(self.num_batch):
+                batch_step = 0
+                for BATCH in self.data_generator.pairwise_reader(train_pair_file_path, self.batch_size,
+                                                                 with_idf=True):
+                    batch_step += 1
+                    # step += 1
                     X = BATCH
                     M_pos = self.gen_mask(X[u'q'], X[u'd'])
                     M_neg = self.gen_mask(X[u'q'], X[u'd_aux'])
@@ -238,7 +242,11 @@ class Knrm(BaseNN):
 
                     # Run the graph and fetch some of the nodes.
                     _, l = sess.run([optimizer, loss], feed_dict=train_feed_dict)
-                print "Finished training!"
+                    print '[%s]' % time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+                    print '[Train] @ iter: %d,' % (epoch * self.num_batch + batch_step),
+                    print 'train_loss: %.5f' % l
+                    if (batch_step == self.num_batch): break
+
                 ##########  VALIDATION  ###########
                 for filenum in range(len(val_pair_file_path_list)):
                     scoredict = {}
@@ -246,19 +254,18 @@ class Knrm(BaseNN):
                     total_loss = 0
                     batch_cnt = 0
                     for BATCH in self.val_data_generator[filenum].pointwise_generate(val_pair_file_path_list[filenum], self.batch_size, with_idf=True):
-                        tmp_o = 0
                         batch_cnt = batch_cnt + 1
                         X_val, Y_val = BATCH
                         M_pos = self.gen_mask(X_val[u'q'], X_val[u'd'])
-                        M_neg = self.gen_mask(X[u'q'], np.zeros([self.batch_size,self.max_d_len]))
+                        M_neg = self.gen_mask(X_val[u'q'], np.zeros([self.batch_size,self.max_d_len]))
                         val_feed_dict = {train_inputs_q: self.re_pad(X_val[u'q'], self.batch_size),
-                                            train_inputs_pos_d: self.re_pad(X_val[u'd'], self.batch_size),
-                                            train_inputs_neg_d: self.re_pad(np.zeros([self.batch_size,self.max_d_len]),self.batch_size),
-                                            train_input_q_weights: self.re_pad(X_val[u'idf'], self.batch_size),
-                                            input_mu: self.mus,
-                                            input_sigma: self.sigmas,
-                                            input_train_mask_pos: M_pos,
-                                            input_train_mask_neg: M_neg}
+                                         train_inputs_pos_d: self.re_pad(X_val[u'd'], self.batch_size),
+                                         train_inputs_neg_d: self.re_pad(np.zeros([self.batch_size,self.max_d_len]),self.batch_size),
+                                         train_input_q_weights: self.re_pad(X_val[u'idf'], self.batch_size),
+                                         input_mu: self.mus,
+                                         input_sigma: self.sigmas,
+                                         input_train_mask_pos: M_pos,
+                                         input_train_mask_neg: M_neg}
 
                         l, o_p= sess.run([loss,o_pos], feed_dict=val_feed_dict)
                         total_loss += l
@@ -278,13 +285,20 @@ class Knrm(BaseNN):
                             if i not in metricdict.keys():
                                 metricdict[i] = 0
                             metricdict[i]+=metrics[i]
-                    outstr = "Validation_"+str(filenum)+" METRICS: "
+                    # outstr = "Validation_"+str(filenum)+" METRICS: "
                     assert batch_cnt > 0
-                    outstr += "loss: %.5f "%(total_loss/batch_cnt ) ############
-                    for i in metricdict.keys():
-                        metricdict[i]/=len(scoredict.keys())
-                        outstr += str(i) + ": " + str(metricdict[i])+ ';\t'
-                    print outstr                             
+                    valid_loss = total_loss/batch_cnt
+                    # outstr += "loss: %.5f "%(total_loss/batch_cnt ) ############
+                    # for i in metricdict.keys():
+                    #     metricdict[i]/=len(scoredict.keys())
+                    #     outstr += str(i) + ": " + str(metricdict[i])+ ';\t'
+                    # print outstr
+
+                    print '[%s]' % time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+                    print '[Eval] @ epoch: %d,' % (epoch + 1),
+                    print 'valid loss: %.5f'%valid_loss,
+                    print ', '.join(['%s: %.5f' % (k, metricdict[k]) for k in metricdict])
+
 
                 ##########  TEST  ###########
                 scoredict = {}
@@ -293,15 +307,15 @@ class Knrm(BaseNN):
                     tmp_o = 0
                     X_test, Y_test = BATCH
                     M_pos = self.gen_mask(X_test[u'q'], X_test[u'd'])
-                    M_neg = self.gen_mask(X[u'q'], np.zeros([self.batch_size,self.max_d_len]))
+                    M_neg = self.gen_mask(X_test[u'q'], np.zeros([self.batch_size,self.max_d_len]))
                     test_feed_dict = {train_inputs_q: self.re_pad(X_test[u'q'], self.batch_size),
-                                        train_inputs_pos_d: self.re_pad(X_test[u'd'], self.batch_size),
-                                        train_inputs_neg_d: self.re_pad(np.zeros([self.batch_size,self.max_d_len]),self.batch_size),
-                                        train_input_q_weights: self.re_pad(X_test[u'idf'], self.batch_size),
-                                        input_mu: self.mus,
-                                        input_sigma: self.sigmas,
-                                        input_train_mask_pos: M_pos,
-                                        input_train_mask_neg: M_neg}
+                                      train_inputs_pos_d: self.re_pad(X_test[u'd'], self.batch_size),
+                                      train_inputs_neg_d: self.re_pad(np.zeros([self.batch_size,self.max_d_len]),self.batch_size),
+                                      train_input_q_weights: self.re_pad(X_test[u'idf'], self.batch_size),
+                                      input_mu: self.mus,
+                                      input_sigma: self.sigmas,
+                                      input_train_mask_pos: M_pos,
+                                      input_train_mask_neg: M_neg}
 
                     o_p= sess.run(o_pos, feed_dict=test_feed_dict)
                     for num,i in enumerate(X_test['qid']):
@@ -320,23 +334,28 @@ class Knrm(BaseNN):
                         if i not in metricdict.keys():
                             metricdict[i] = 0
                         metricdict[i]+=metrics[i]
-                outstr = "TEST METRICS: "
-                for i in metricdict.keys():
-                    metricdict[i]/=len(scoredict.keys())
-                    outstr += str(i) + ": " + str(metricdict[i])+ ';\t'
-                print outstr  
-            '''
+                print '[%s]' % time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+                print '[Eval] @ epoch: %d,' % (epoch + 1),
+                # print 'valid loss: %.5f' % valid_loss,
+                print ', '.join(['%s: %.5f' % (k, metricdict[k]) for k in metricdict])
+                # outstr = "TEST METRICS: "
+                # for i in metricdict.keys():
+                #     metricdict[i]/=len(scoredict.keys())
+                #     outstr += str(i) + ": " + str(metricdict[i])+ ';\t'
+                # print outstr
+
                 # save data
-                if (step + 1) % self.checkpoint_steps == 0:
-                    saver.save(sess, checkpoint_dir + '/data.ckpt')
+                # if (step + 1) % self.checkpoint_steps == 0:
+                saver.save(sess, checkpoint_dir + '/data.ckpt')
                 # END epoch
+            print ''
 
             # end training
             saver.save(sess, checkpoint_dir + '/data.ckpt')
-            '''
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("config_file_path")
+    parser.add_argument("--config")
     parser.add_argument("--train", action='store_true')
     parser.add_argument("--train_size", '-z', type=int, help="number of train samples")
     parser.add_argument("--load_model", '-l', action='store_true')
@@ -344,21 +363,21 @@ if __name__ == '__main__':
     parser.add_argument("--test_size", type=int, default=0)
     parser.add_argument("--output_score_file", '-o')
     parser.add_argument("--emb_file_path", '-e')
-    #parser.add_argument("--checkpoint_dir", '-s', help="store data to here")
+    parser.add_argument("--checkpoint_dir", '-s', help="store data to here")
 
     args = parser.parse_args()
 
-    conf = PyFileConfigLoader(args.config_file_path).load_config()
+    conf = PyFileConfigLoader(args.config).load_config()
 
     if args.train:
         nn = Knrm(config=conf)
         nn.train(train_size=args.train_size,
-                 #checkpoint_dir=args.checkpoint_dir,
+                 checkpoint_dir=args.checkpoint_dir,
                  load_model=args.load_model)
-    else:
-        nn = Knrm(config=conf)
-        nn.test(test_point_file_path=args.test_file,
-                test_size=args.test_size,
-                output_file_path=args.output_score_file,
-                load_model=True)
-                #checkpoint_dir=args.checkpoint_dir)
+    # else:
+    #     nn = Knrm(config=conf)
+    #     nn.test(test_point_file_path=args.test_file,
+    #             test_size=args.test_size,
+    #             output_file_path=args.output_score_file,
+    #             load_model=True)
+        #checkpoint_dir=args.checkpoint_dir)

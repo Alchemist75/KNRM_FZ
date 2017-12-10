@@ -57,7 +57,7 @@ class DataGenerator(Configurable):
     max_q_len = Int(10, help='max q len').tag(config=True)
     max_d_len = Int(50, help='max document len').tag(config=True)
     query_per_iter = Int(2, help="queries").tag(config=True)
-    batch_per_iter = Int(100, help="batch").tag(config=True)
+    batch_per_iter = Int(10, help="batch").tag(config=True)
     batch_size = Int(16, help="bs").tag(config=True)
     epoch_size = Int(100, help="es").tag(config=True)
     q_name = Unicode('q')
@@ -74,12 +74,14 @@ class DataGenerator(Configurable):
         self.word_dict = word_dict
         self.idf_dict = idf_dict
 
-    def __init__(self, **kwargs):
+    def __init__(self, pair_stream_dir, **kwargs):
         super(DataGenerator, self).__init__(**kwargs)
         self.m_title_pool = np.array(None)
         if self.load_litle_pool and self.neg_sample:
             self._load_title_pool()
-        self.qfile_list = ''
+        # self.qfile_list = ''
+        self.pair_stream_dir = pair_stream_dir
+        self.qfile_list = get_file_list(pair_stream_dir)
         print "min_score_diff: ", self.min_score_diff
         print "generator's vocabulary size: ", self.vocabulary_size
 
@@ -90,9 +92,9 @@ class DataGenerator(Configurable):
             logging.info('loaded [%d] title pool', self.m_title_pool.shape[0])
 
     def pointwise_generate(self, pair_stream_dir, batch_size, with_label=True, with_idf=False):
-        if self.qfile_list == '':
-            self.qfile_list = get_file_list(pair_stream_dir)
-            print len(self.qfile_list), '!!!'
+        # if self.qfile_list == '':
+        #     self.qfile_list = get_file_list(pair_stream_dir)
+            # print len(self.qfile_list), '!!!'
 
         qfile_list = self.qfile_list
 
@@ -163,9 +165,9 @@ class DataGenerator(Configurable):
         logging.info('point wise generator to an end')
 
     def make_pair(self, pair_stream_dir, query_per_iter):
-        if self.qfile_list == '':
-            self.qfile_list = get_file_list(pair_stream_dir)
-            print '!!!!', len(self.qfile_list)
+        # if self.qfile_list == '':
+        #     self.qfile_list = get_file_list(pair_stream_dir)
+            # print '!!!!', len(self.qfile_list)
         qfile_list = self.qfile_list
         # print '!!!!', len(qfile_list)
         uid_doc = {}
@@ -212,6 +214,8 @@ class DataGenerator(Configurable):
     def pairwise_reader(self, pair_stream_dir, batch_size, with_idf=False):
         while True:
             qid_query, uid_doc, qid_label_uid, pair_list, qid_idf = self.make_pair(pair_stream_dir, self.query_per_iter)
+            print '[%s]' % time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+            print 'Pair Instance Count:', len(pair_list)
             for _i in range(self.batch_per_iter):
                 sample_pair_list = random.sample(pair_list, self.batch_size)
                 Xq = np.zeros((self.batch_size, self.max_q_len), dtype=np.int32)
@@ -244,37 +248,37 @@ class DataGenerator(Configurable):
                 yield X
 
 
-if __name__ == '__main__':
-    from deeplearning4ir.utils import set_basic_log, load_py_config
-    set_basic_log()
-    if 4 != len(sys.argv):
-        print "I test generator"
-        print "3 para: config + click pair with int term + batch_size"
-        DataGenerator.class_print_help()
-        sys.exit(-1)
-    conf = load_py_config(sys.argv[1])
-    generator = DataGenerator(config=conf)
-
-    pair_stream = open(sys.argv[2])
-    batch_size = int(sys.argv[3])
-    X, Y = next(generator.pointwise_generate(pair_stream, batch_size, False))
-    a = np.ones(1)
-
-    print "point wise Y:\n %s" % (np.array2string(Y))
-    print "\n\n"
-    print "q: \n %s" % (np.array2string(X[generator.q_name]))
-    print "\n\n"
-    print "d: \n %s" % (np.array2string(X[generator.d_name]))
-    print "\n\n"
-    X, Y = next(generator.pairwise_generate(pair_stream, batch_size))
-
-    print "pair wise Y:\n %s" % (np.array2string(Y))
-    print "\n\n"
-    print "q: \n %s" % (np.array2string(X[generator.q_name]))
-    print "\n\n"
-    print "d: \n %s" % (np.array2string(X[generator.d_name]))
-    print "\n\n"
-    print "aux d: \n %s" % (np.array2string(X[generator.aux_d_name]))
+# if __name__ == '__main__':
+#     from deeplearning4ir.utils import set_basic_log, load_py_config
+#     set_basic_log()
+#     if 4 != len(sys.argv):
+#         print "I test generator"
+#         print "3 para: config + click pair with int term + batch_size"
+#         DataGenerator.class_print_help()
+#         sys.exit(-1)
+#     conf = load_py_config(sys.argv[1])
+#     generator = DataGenerator(config=conf)
+#
+#     pair_stream = open(sys.argv[2])
+#     batch_size = int(sys.argv[3])
+#     X, Y = next(generator.pointwise_generate(pair_stream, batch_size, False))
+#     a = np.ones(1)
+#
+#     print "point wise Y:\n %s" % (np.array2string(Y))
+#     print "\n\n"
+#     print "q: \n %s" % (np.array2string(X[generator.q_name]))
+#     print "\n\n"
+#     print "d: \n %s" % (np.array2string(X[generator.d_name]))
+#     print "\n\n"
+#     X, Y = next(generator.pairwise_generate(pair_stream, batch_size))
+#
+#     print "pair wise Y:\n %s" % (np.array2string(Y))
+#     print "\n\n"
+#     print "q: \n %s" % (np.array2string(X[generator.q_name]))
+#     print "\n\n"
+#     print "d: \n %s" % (np.array2string(X[generator.d_name]))
+#     print "\n\n"
+#     print "aux d: \n %s" % (np.array2string(X[generator.aux_d_name]))
 
 
 

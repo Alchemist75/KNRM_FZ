@@ -25,21 +25,25 @@ class BaseNN(Configurable):
     max_q_len = Int(10, help='max q len').tag(config=True)
     max_d_len = Int(50, help='max document len').tag(config=True)
     batch_size = Int(16, help="minibatch size").tag(config=True)
-    epoch_size = Int(100, help="minibatch size").tag(config=True)
+    # epoch_size = Int(100, help="minibatch size").tag(config=True)
     max_epochs = Float(10, help="maximum number of epochs").tag(config=True)
+    num_batch = Float(10, help="number of minibatch in one epoch").tag(config=True)
     embedding_size = Int(300, help="embedding dimension").tag(config=True)
     vocabulary_size = Int(20, help="vocabulary size").tag(config=True)
     valid_in_list = Unicode('None', help="initial valid.").tag(config=True)
+    train_in = Unicode('None', help="initial train.").tag(config=True)
+    test_in  = Unicode('None', help="initial test.").tag(config=True)
+    # valid_in_list = Unicode('None', help="initial valid.").tag(config=True)
 
     def __init__(self, **kwargs):
         super(BaseNN, self).__init__(**kwargs)
 
         # generator
-        self.data_generator = DataGenerator(config=self.config)
+        self.data_generator = DataGenerator(config=self.config, pair_stream_dir=self.train_in)
         self.val_data_generator = []
         for i in range(len(self.valid_in_list.split(';'))):
-            self.val_data_generator.append(DataGenerator(config=self.config))
-        self.test_data_generator = DataGenerator(config=self.config)
+            self.val_data_generator.append(DataGenerator(config=self.config, pair_stream_dir=self.valid_in_list[i]))
+        self.test_data_generator = DataGenerator(config=self.config, pair_stream_dir=self.test_in)
 
     @staticmethod
     def kernal_mus(n_kernels, use_exact):
