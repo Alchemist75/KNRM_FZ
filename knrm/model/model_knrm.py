@@ -241,7 +241,7 @@ class Knrm(BaseNN):
 
                 saver.save(sess, checkpoint_dir + '/data.ckpt')
                 # END epoch
-            print ''
+                print ''
 
             # end training
             saver.save(sess, checkpoint_dir + '/data.ckpt')
