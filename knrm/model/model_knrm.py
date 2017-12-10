@@ -296,7 +296,7 @@ class Knrm(BaseNN):
                                  input_train_mask_pos: M_pos,
                                  input_train_mask_neg: M_neg}
 
-                o_p = sess.run([o_pos], feed_dict=val_feed_dict)
+                o_p = sess.run(o_pos, feed_dict=val_feed_dict)
                 # total_loss += l
                 for num, i in enumerate(X_val['qid']):
                     if not scoredict.has_key(X_val['qid'][num]):
