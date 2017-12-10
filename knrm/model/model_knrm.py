@@ -386,7 +386,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = args.device
     conf = PyFileConfigLoader(args.config).load_config()
-
+    print '\n##### CONFIG #####'
+    with open(args.config) as config_file:
+        for line in config_file:
+            line = line.strip()
+            if len(line) < 1:
+                continue
+            print line
+    print '##### CONFIG #####\n'
     if args.train:
         nn = Knrm(config=conf)
         nn.train(train_size=args.train_size,
