@@ -179,6 +179,7 @@ class DataGenerator(Configurable):
         uid_doc = {}
         qid_query = {}
         qid_label_uid = {}
+        qid_uid_label = {}
         qid_idf = {}
 
         qfiles = random.sample(qfile_list, query_per_iter)
@@ -200,6 +201,9 @@ class DataGenerator(Configurable):
                     if label not in qid_label_uid[qid]:
                         qid_label_uid[qid][label] = []
                     qid_label_uid[qid][label].append(uid)
+                    if qid not in qid_uid_label:
+                        qid_uid_label[qid] = {}
+                    qid_uid_label[qid][uid] = label
 
         #make pair
         pair_list = []
@@ -215,11 +219,11 @@ class DataGenerator(Configurable):
                     for dp in qid_label_uid[qid][hl]:
                         for dn in qid_label_uid[qid][ll]:
                             pair_list.append([qid, dp, dn])
-        return qid_query, uid_doc, qid_label_uid, pair_list, qid_idf
+        return qid_query, uid_doc, qid_label_uid, pair_list, qid_idf, qid_uid_label
 
     def pairwise_reader(self, with_idf=False):
         while True:
-            qid_query, uid_doc, qid_label_uid, pair_list, qid_idf = self.make_pair(self.query_per_iter)
+            qid_query, uid_doc, qid_label_uid, pair_list, qid_idf, qid_uid_label = self.make_pair(self.query_per_iter)
             print '[%s]' % time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
             print 'Pair Instance Count:', len(pair_list)
             for _i in range(self.batch_per_iter):
@@ -229,7 +233,7 @@ class DataGenerator(Configurable):
                 Xd = np.zeros((self.batch_size , self.max_d_len), dtype=np.int32)
                 Xd_aux = np.zeros((self.batch_size , self.max_d_len), dtype=np.int32)
                 #label not used
-                #Y = np.zeros((self.batch_size,), dtype=np.int32)
+                Y = np.zeros((self.batch_size,2), dtype=np.int32)
 
                 for i in range(self.batch_size):
                     qid, dp_id, dn_id = sample_pair_list[i]
@@ -246,9 +250,11 @@ class DataGenerator(Configurable):
                     Xd[i, :dp_len] = dp[:dp_len]
                     Xd_aux[i, :dn_len] = dn[:dn_len]
                     Xidf[i,:query_len] = idf[:query_len]
+                    Y[i,0] = qid_uid_label[qid][dp_id]
+                    Y[i,1] = qid_uid_label[qid][dn_id]
                 if with_idf:
                     IDF = np.array(Xidf, dtype=float)
                 else:
                     IDF = np.ones(Xidf.shape,dtype=float)
                 X = {self.q_name: Xq, self.d_name: Xd, self.idf_name: IDF, self.aux_d_name: Xd_aux}
-                yield X
+                yield X, Y

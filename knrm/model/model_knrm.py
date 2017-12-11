@@ -227,15 +227,18 @@ class Knrm(BaseNN):
                                     optimizer, loss, epoch)
 
                 ##########  VALIDATION  ###########
+                output = open('../output/%s/%s_%s_output_%s.txt' % ("K-NRM", "K-NRM", 'val', str(epoch+1)), 'w')
                 self.valid_in_train(val_pair_file_path_list, train_inputs_q, train_inputs_pos_d,
                                     train_inputs_neg_d, train_input_q_weights, input_mu, input_sigma,
-                                    input_train_mask_pos, input_train_mask_neg, sess, o_pos,  epoch, loss)
-
+                                    input_train_mask_pos, input_train_mask_neg, sess, o_pos,  epoch, loss, output)
+                output.close()
 
                 ##########  TEST  ###########
+                output = open('../output/%s/%s_%s_output_%s.txt' % ("K-NRM", "K-NRM", 'test', str(epoch+1)), 'w')
                 self.test_in_train(train_inputs_q, train_inputs_pos_d, train_inputs_neg_d,
                                    train_input_q_weights, input_mu, input_sigma, input_train_mask_pos,
-                                   input_train_mask_neg, sess, o_pos, epoch)
+                                   input_train_mask_neg, sess, o_pos, epoch, output)
+                output.close()
 
                 # save data
 
@@ -253,7 +256,7 @@ class Knrm(BaseNN):
         for BATCH in self.data_generator.pairwise_reader(with_idf=True):
             batch_step += 1
             # step += 1
-            X = BATCH
+            X, Y = BATCH
             M_pos = self.gen_mask(X[u'q'], X[u'd'])
             M_neg = self.gen_mask(X[u'q'], X[u'd_aux'])
             train_feed_dict = {train_inputs_q: self.re_pad(X[u'q'], self.batch_size),
@@ -274,14 +277,13 @@ class Knrm(BaseNN):
 
     def valid_in_train(self, val_pair_file_path_list, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d,
                        train_input_q_weights, input_mu, input_sigma, input_train_mask_pos, input_train_mask_neg,
-                       sess, o_pos, epoch, loss):
+                       sess, o_pos, epoch, loss, output):
         for filenum in range(len(val_pair_file_path_list)):
             scoredict = {}
             metricdict = {}
             # total_loss = 0
             batch_cnt = 0
-            for BATCH in self.val_data_generator[
-                filenum].pointwise_generate():  # val_pair_file_path_list[filenum], self.batch_size, with_idf=True):
+            for BATCH in self.val_data_generator[filenum].pointwise_generate():  # val_pair_file_path_list[filenum], self.batch_size, with_idf=True):
                 batch_cnt = batch_cnt + 1
                 X_val, Y_val = BATCH
                 M_pos = self.gen_mask(X_val[u'q'], X_val[u'd'])
@@ -302,6 +304,7 @@ class Knrm(BaseNN):
                     if not scoredict.has_key(X_val['qid'][num]):
                         scoredict[X_val['qid'][num]] = {}
                     scoredict[X_val['qid'][num]][X_val['uid'][num]] = (o_p[num], Y_val[num])
+                    output.write('%s\t%s\t%s\t%s\n' % (i, X_val['uid'][num], Y_val[num], o_p[num]))###WRONG!!!###
             for q in scoredict.keys():
                 y_pred = []
                 y_label = []
@@ -330,7 +333,7 @@ class Knrm(BaseNN):
 
     def test_in_train(self, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d, train_input_q_weights,
                       input_mu, input_sigma, input_train_mask_pos, input_train_mask_neg,
-                      sess, o_pos, epoch):
+                      sess, o_pos, epoch, output):
         scoredict = {}
         metricdict = {}
         for BATCH in self.test_data_generator.pointwise_generate():  # test_pair_file_path, self.batch_size, with_idf=True):
@@ -352,6 +355,8 @@ class Knrm(BaseNN):
                 if not scoredict.has_key(X_test['qid'][num]):
                     scoredict[X_test['qid'][num]] = {}
                 scoredict[X_test['qid'][num]][X_test['uid'][num]] = (o_p[num], Y_test[num])
+                output.write('%s\t%s\t%s\t%s\n' % (i, X_test['uid'][num], Y_test[num], o_p[num]))###WRONG!!!###
+            
         for q in scoredict.keys():
             y_pred = []
             y_label = []
