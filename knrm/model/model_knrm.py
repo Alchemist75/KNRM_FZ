@@ -28,11 +28,11 @@ class Knrm(BaseNN):
     train_in = Unicode('None', help="initial train.").tag(config=True)
     test_in  = Unicode('None', help="initial test.").tag(config=True)
     valid_in_list = Unicode('None', help="initial valid.").tag(config=True)
+    checkpoint_dir = Unicode('None', help="checkpoint saver's path.").tag(config=True)
     metrics = Unicode('None', help="Metrics.").tag(config=True)
     lamb = Float(0.5, help="guassian_sigma = lamb * bin_size").tag(config=True)
     learning_rate = Float(0.001, help="learning rate, default is 0.001").tag(config=True)
     epsilon = Float(0.00001, help="Epsilon for Adam").tag(config=True)
-
 
     def __init__(self, **kwargs):
         super(Knrm, self).__init__(**kwargs)
@@ -134,7 +134,7 @@ class Knrm(BaseNN):
         # return some mid result and final matching score.
         return (sim, feats_flat), o
 
-    def train(self, train_size, checkpoint_dir, load_model=False):
+    def train(self, train_size, load_model=False):
 
         # PLACEHOLDERS
         # This is where training samples and labels are fed to the graph.
@@ -203,7 +203,7 @@ class Knrm(BaseNN):
                 tf.initialize_all_variables().run()
                 print('New model initialized!')
             else:
-                ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
+                ckpt = tf.train.get_checkpoint_state(self.checkpoint_dir)
                 if ckpt and ckpt.model_checkpoint_path:
                     saver.restore(sess, ckpt.model_checkpoint_path)
                     print "model loaded!"
@@ -242,12 +242,12 @@ class Knrm(BaseNN):
 
                 # save data
 
-                saver.save(sess, checkpoint_dir + '/data.ckpt')
+                saver.save(sess, self.checkpoint_dir + '/data.ckpt')
                 # END epoch
                 print ''
 
             # end training
-            saver.save(sess, checkpoint_dir + '/data.ckpt')
+            saver.save(sess, self.checkpoint_dir + '/data.ckpt')
 
     def train_in_train(self, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d, train_input_q_weights,
                        input_mu,  input_sigma, input_train_mask_pos, input_train_mask_neg,  sess,
@@ -386,7 +386,7 @@ if __name__ == '__main__':
     parser.add_argument("--test_size", type=int, default=0)
     parser.add_argument("--output_score_file", '-o')
     parser.add_argument("--emb_file_path", '-e')
-    parser.add_argument("--checkpoint_dir", '-s', help="store data to here")
+    #parser.add_argument("--checkpoint_dir", '-s', help="store data to here")
 
     args = parser.parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = args.device
@@ -402,7 +402,7 @@ if __name__ == '__main__':
     if args.train:
         nn = Knrm(config=conf)
         nn.train(train_size=args.train_size,
-                 checkpoint_dir=args.checkpoint_dir,
+                 #checkpoint_dir=args.checkpoint_dir,
                  load_model=args.load_model)
         # else:
         #     nn = Knrm(config=conf)
