@@ -29,10 +29,13 @@ class Knrm(BaseNN):
     test_in  = Unicode('None', help="initial test.").tag(config=True)
     valid_in_list = Unicode('None', help="initial valid.").tag(config=True)
     checkpoint_dir = Unicode('None', help="checkpoint saver's path.").tag(config=True)
+    save_frequency = Int(100, help="save frequency").tag(config=True)
+    print_frequency = Int(2, help="print score frequency").tag(config=True)
     metrics = Unicode('None', help="Metrics.").tag(config=True)
     lamb = Float(0.5, help="guassian_sigma = lamb * bin_size").tag(config=True)
     learning_rate = Float(0.001, help="learning rate, default is 0.001").tag(config=True)
     epsilon = Float(0.00001, help="Epsilon for Adam").tag(config=True)
+
 
     def __init__(self, **kwargs):
         super(Knrm, self).__init__(**kwargs)
@@ -227,22 +230,30 @@ class Knrm(BaseNN):
                                     optimizer, loss, epoch)
 
                 ##########  VALIDATION  ###########
-                output = open('../output/%s/%s_%s_output_%s.txt' % ("K-NRM", "K-NRM", 'val', str(epoch+1)), 'w')
+                if (epoch % self.print_frequency == 0):
+                    output = open('../output/%s/%s_%s_output_%s.txt' % ("K-NRM", "K-NRM", 'val', str(epoch+1)), 'w')
+                else:
+                    output = None
                 self.valid_in_train(val_pair_file_path_list, train_inputs_q, train_inputs_pos_d,
                                     train_inputs_neg_d, train_input_q_weights, input_mu, input_sigma,
                                     input_train_mask_pos, input_train_mask_neg, sess, o_pos,  epoch, loss, output)
-                output.close()
+                if (epoch % self.print_frequency == 0):
+                    output.close()
 
                 ##########  TEST  ###########
-                output = open('../output/%s/%s_%s_output_%s.txt' % ("K-NRM", "K-NRM", 'test', str(epoch+1)), 'w')
+                if (epoch % self.print_frequency == 0):
+                    output = open('../output/%s/%s_%s_output_%s.txt' % ("K-NRM", "K-NRM", 'test', str(epoch+1)), 'w')
+                else:
+                    output = None
                 self.test_in_train(train_inputs_q, train_inputs_pos_d, train_inputs_neg_d,
                                    train_input_q_weights, input_mu, input_sigma, input_train_mask_pos,
                                    input_train_mask_neg, sess, o_pos, epoch, output)
-                output.close()
+                if (epoch % self.print_frequency == 0):
+                    output.close()
 
                 # save data
-
-                saver.save(sess, self.checkpoint_dir + '/data.ckpt')
+                if (epoch % self.save_frequency == 0):
+                    saver.save(sess, self.checkpoint_dir + '/data.ckpt')
                 # END epoch
                 print ''
 
@@ -304,7 +315,8 @@ class Knrm(BaseNN):
                     if not scoredict.has_key(X_val['qid'][num]):
                         scoredict[X_val['qid'][num]] = {}
                     scoredict[X_val['qid'][num]][X_val['uid'][num]] = (o_p[num], Y_val[num])
-                    output.write('%s\t%s\t%s\t%s\n' % (i, X_val['uid'][num], Y_val[num], o_p[num]))###WRONG!!!###
+                    if (output!=None):
+                        output.write('%s\t%s\t%s\t%s\n' % (i, X_val['uid'][num], Y_val[num], o_p[num]))
             for q in scoredict.keys():
                 y_pred = []
                 y_label = []
@@ -355,7 +367,8 @@ class Knrm(BaseNN):
                 if not scoredict.has_key(X_test['qid'][num]):
                     scoredict[X_test['qid'][num]] = {}
                 scoredict[X_test['qid'][num]][X_test['uid'][num]] = (o_p[num], Y_test[num])
-                output.write('%s\t%s\t%s\t%s\n' % (i, X_test['uid'][num], Y_test[num], o_p[num]))###WRONG!!!###
+                if (output!= None):
+                    output.write('%s\t%s\t%s\t%s\n' % (i, X_test['uid'][num], Y_test[num], o_p[num]))###WRONG!!!###
             
         for q in scoredict.keys():
             y_pred = []
