@@ -139,8 +139,10 @@ class DataGenerator(Configurable):
                                 IDF[num][:ilength] = l_idf[num][:ilength]
                         else:
                             IDF = np.ones(Q.shape, dtype=float)
-
-                        Y = l_y
+			Y = np.zeros([batch_size,])
+			for num,i in enumerate(l_y):
+			    Y[num] = i
+                        #Y = l_y
                         X = {self.q_name: Q, self.d_name: D, self.idf_name: IDF, "qid": l_qid, "uid": l_uid}
                         # yield X, Y
                         batch_list.append([X, Y])
@@ -162,7 +164,10 @@ class DataGenerator(Configurable):
                     IDF[num][:ilength] = l_idf[num][:ilength]
             else:
                 IDF = np.ones(Q.shape, dtype=float)
-            Y = l_y
+	    Y = np.zeros([batch_size,])
+	    for num,i in enumerate(l_y):
+	    	Y[num] = i
+            #Y = l_y
             X = {self.q_name: Q, self.d_name: D, self.idf_name: IDF, "qid": l_qid, "uid": l_uid}
             # yield X, Y
             batch_list.append([X, Y])
@@ -233,7 +238,7 @@ class DataGenerator(Configurable):
                 Xd = np.zeros((self.batch_size , self.max_d_len), dtype=np.int32)
                 Xd_aux = np.zeros((self.batch_size , self.max_d_len), dtype=np.int32)
                 #label not used
-                Y = np.zeros((self.batch_size,2), dtype=np.int32)
+                Y = np.zeros((self.batch_size,2), dtype=np.float)
 
                 for i in range(self.batch_size):
                     qid, dp_id, dn_id = sample_pair_list[i]

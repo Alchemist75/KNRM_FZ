@@ -6,19 +6,25 @@ import random
 import numpy as np
 import math
 
-
+def conv2array(lis):
+    output = np.zeros([len(lis)])
+    for i in range(len(lis)):
+	output[i] = lis[i]
+    return output        
 def calc_metric(metric_list,y_pred,y_label):
     res = {}
+    arr_pred = conv2array(y_pred)
+    arr_label = conv2array(y_label)
     for i in metric_list:
         if(i=="map"):
-            res[i] = eval_map(y_label,y_pred)
+            res[i] = eval_map(arr_label,arr_pred)
         else:
             lis = i.strip().split('@')
             if (lis[0]=='p'):
-                res[i] = eval_precision(y_label,y_pred,k=float(lis[1]))
+                res[i] = eval_precision(arr_label,arr_pred,k=int(lis[1]))
             else:
                 if (lis[0]=="ndcg"):
-                    res[i] = eval_ndcg(y_label,y_pred,k=float(lis[1]))
+                    res[i] = eval_ndcg(arr_label,arr_pred,k=int(lis[1]))
     return res 
 '''
 class rank_eval():
@@ -104,7 +110,10 @@ def eval_map(y_true, y_pred, rel_threshold=0):
     s = 0.
     y_true = np.squeeze(y_true)
     y_pred = np.squeeze(y_pred)
-    c = zip(y_true, y_pred)
+    if (y_true.shape!=()):
+        c = zip(y_true, y_pred)
+    else:
+        c = np.array([[y_true,y_pred]])
     random.shuffle(c)
     c = sorted(c, key=lambda x:x[1], reverse=True)
     ipos = 0
@@ -124,7 +133,12 @@ def eval_ndcg(y_true, y_pred, k = 10, rel_threshold=0.):
     s = 0.
     y_true = np.squeeze(y_true)
     y_pred = np.squeeze(y_pred)
-    c = zip(y_true, y_pred)
+    if (y_true.shape!=()):
+        c = zip(y_true, y_pred)
+    else:
+        c = np.array([[y_true,y_pred]])
+    #print(type(y_pred))
+    #c = zip(y_true, y_pred)
     random.shuffle(c)
     c_g = sorted(c, key=lambda x:x[0], reverse=True)
     c_p = sorted(c, key=lambda x:x[1], reverse=True)
@@ -151,7 +165,11 @@ def eval_precision(y_true, y_pred, k = 10, rel_threshold=0.):
     s = 0.
     y_true = np.squeeze(y_true)
     y_pred = np.squeeze(y_pred)
-    c = zip(y_true, y_pred)
+    #c = zip(y_true, y_pred)
+    if (y_true.shape!=()):
+        c = zip(y_true, y_pred)
+    else:
+        c = np.array([[y_true,y_pred]])
     random.shuffle(c)
     c = sorted(c, key=lambda x:x[1], reverse=True)
     ipos = 0
