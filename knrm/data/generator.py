@@ -115,7 +115,7 @@ class DataGenerator(Configurable):
                     query = char2list(query.strip().split(), self.word_dict)
                     idf = getidf(query, self.idf_dict)
                     doc = char2list(doc.strip().split(), self.word_dict)
-                    label = int(label)
+                    label = float(label)
                     l_q.append(query)
                     l_d.append(doc)
                     l_y.append(label)

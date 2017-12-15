@@ -15,10 +15,10 @@ def calc_metric(metric_list,y_pred,y_label):
         else:
             lis = i.strip().split('@')
             if (lis[0]=='p'):
-                res[i] = eval_precision(y_label,y_pred,k=int(lis[1]))
+                res[i] = eval_precision(y_label,y_pred,k=float(lis[1]))
             else:
                 if (lis[0]=="ndcg"):
-                    res[i] = eval_ndcg(y_label,y_pred,k=int(lis[1]))
+                    res[i] = eval_ndcg(y_label,y_pred,k=float(lis[1]))
     return res 
 '''
 class rank_eval():

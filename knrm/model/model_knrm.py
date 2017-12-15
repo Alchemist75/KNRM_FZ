@@ -231,7 +231,7 @@ class Knrm(BaseNN):
 
                 ##########  VALIDATION  ###########
                 if (epoch % self.print_frequency == 0):
-                    output = open('../output/%s/%s_%s_output_%s.txt' % ("K-NRM", "K-NRM", 'val', str(epoch+1)), 'w')
+                    output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", "K-NRM", 'val', str(epoch+1)), 'w')
                 else:
                     output = None
                 self.valid_in_train(val_pair_file_path_list, train_inputs_q, train_inputs_pos_d,
