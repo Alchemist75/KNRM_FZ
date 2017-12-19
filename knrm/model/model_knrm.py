@@ -168,6 +168,8 @@ class Knrm(BaseNN):
         input_train_mask_pos = tf.placeholder(tf.float32, shape=[self.batch_size, self.max_q_len, self.max_d_len])
         input_train_mask_neg = tf.placeholder(tf.float32, shape=[self.batch_size, self.max_q_len, self.max_d_len])
 
+        input_labels = tf.placeholder(tf.float32, shape=[self.batch_size,2])
+
         # reshape place holders
         mu = tf.reshape(input_mu, shape=[1, 1, self.n_bins])
         sigma = tf.reshape(input_sigma, shape=[1, 1, self.n_bins])
@@ -178,15 +180,22 @@ class Knrm(BaseNN):
         # training graph
         mid_res_pos, o_pos = self.model(train_inputs_q, train_inputs_pos_d, rs_train_mask_pos, rs_q_weights, mu, sigma)
         mid_res_neg, o_neg = self.model(train_inputs_q, train_inputs_neg_d, rs_train_mask_neg, rs_q_weights, mu, sigma)
+        
         o_all = tf.concat(1,[o_pos,o_neg])
-        print o_all
+        #print o_all
         o_all = tf.nn.softmax(o_all)
-        print o_all
-        o_pos = o_all[:,0]
-        o_neg = o_all[:,1]
-        print o_pos, o_neg
-        loss = tf.reduce_mean(tf.maximum(0.0, 1 - o_pos + o_neg))
+        softmaxed_label = tf.nn.softmax(input_labels)
+        #print o_all
+        #o_pos = o_all[:,0]
+        #o_neg = o_all[:,1]
+        #print o_pos, o_neg
+        #loss = tf.reduce_mean(tf.maximum(0.0, 1 - o_pos + o_neg))       
+        
+        bottom = -tf.reduce_sum(softmaxed_label*tf.log(tf.clip_by_value(softmaxed_label,0.0001,1-0.0001)),axis=-1)
+        loss = -tf.reduce_sum(softmaxed_label*tf.log(tf.clip_by_value(o_all,0.0001,1-0.0001)),axis=-1) - bottom
+        
 
+        
         # optimizer
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate, epsilon=self.epsilon).minimize(loss)
 
@@ -277,7 +286,8 @@ class Knrm(BaseNN):
                                input_mu: self.mus,
                                input_sigma: self.sigmas,
                                input_train_mask_pos: M_pos,
-                               input_train_mask_neg: M_neg}
+                               input_train_mask_neg: M_neg,
+                               input_labels: Y}
 
             # Run the graph and fetch some of the nodes.
             _, l = sess.run([optimizer, loss], feed_dict=train_feed_dict)

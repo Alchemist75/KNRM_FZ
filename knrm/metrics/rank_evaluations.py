@@ -113,7 +113,7 @@ def eval_map(y_true, y_pred, rel_threshold=0):
     if (y_true.shape!=()):
         c = zip(y_true, y_pred)
     else:
-        c = np.array([[y_true,y_pred]])
+        c = np.array([[y_true],[y_pred]])
     random.shuffle(c)
     c = sorted(c, key=lambda x:x[1], reverse=True)
     ipos = 0
@@ -136,7 +136,7 @@ def eval_ndcg(y_true, y_pred, k = 10, rel_threshold=0.):
     if (y_true.shape!=()):
         c = zip(y_true, y_pred)
     else:
-        c = np.array([[y_true,y_pred]])
+        c = np.array([[y_true],[y_pred]])
     #print(type(y_pred))
     #c = zip(y_true, y_pred)
     random.shuffle(c)
@@ -169,7 +169,7 @@ def eval_precision(y_true, y_pred, k = 10, rel_threshold=0.):
     if (y_true.shape!=()):
         c = zip(y_true, y_pred)
     else:
-        c = np.array([[y_true,y_pred]])
+        c = np.array([[y_true],[y_pred]])
     random.shuffle(c)
     c = sorted(c, key=lambda x:x[1], reverse=True)
     ipos = 0
