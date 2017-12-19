@@ -6,3 +6,4 @@ venv/*
 saved_model/
 model_saver/
 *.config
+*.sh

@@ -192,7 +192,7 @@ class Knrm(BaseNN):
         #loss = tf.reduce_mean(tf.maximum(0.0, 1 - o_pos + o_neg))       
         
         bottom = -tf.reduce_sum(softmaxed_label*tf.log(tf.clip_by_value(softmaxed_label,0.0001,1-0.0001)),axis=-1)
-        loss = -tf.reduce_sum(softmaxed_label*tf.log(tf.clip_by_value(o_all,0.0001,1-0.0001)),axis=-1) - bottom
+        loss = tf.reduce_mean(-tf.reduce_sum(softmaxed_label*tf.log(tf.clip_by_value(o_all,0.0001,1-0.0001)),axis=-1) - bottom)
         
 
         
@@ -235,7 +235,7 @@ class Knrm(BaseNN):
                 #pair_stream = open(train_pair_file_path)
                 ##########  TRAIN  ###########
                 self.train_in_train(train_inputs_q, train_inputs_pos_d, train_inputs_neg_d, train_input_q_weights,
-                                    input_mu,  input_sigma, input_train_mask_pos, input_train_mask_neg,  sess,
+                                    input_mu,  input_sigma, input_train_mask_pos, input_train_mask_neg, input_labels, sess,
                                     optimizer, loss, epoch)
 
                 ##########  VALIDATION  ###########
@@ -270,7 +270,7 @@ class Knrm(BaseNN):
             saver.save(sess, self.checkpoint_dir + '/data.ckpt')
 
     def train_in_train(self, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d, train_input_q_weights,
-                       input_mu,  input_sigma, input_train_mask_pos, input_train_mask_neg,  sess,
+                       input_mu,  input_sigma, input_train_mask_pos, input_train_mask_neg, input_labels, sess,
                        optimizer, loss, epoch):
         batch_step = 0
         for BATCH in self.data_generator.pairwise_reader(with_idf=True):
@@ -291,6 +291,7 @@ class Knrm(BaseNN):
 
             # Run the graph and fetch some of the nodes.
             _, l = sess.run([optimizer, loss], feed_dict=train_feed_dict)
+            print l
             print '[%s]' % time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
             print '[Train] @ iter: %d,' % (epoch * self.num_batch + batch_step),
             print 'train_loss: %.5f' % l
