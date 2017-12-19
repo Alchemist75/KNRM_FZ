@@ -5,4 +5,4 @@ venv/*
 *.log
 saved_model/
 model_saver/
-
+*.config
