@@ -291,7 +291,6 @@ class Knrm(BaseNN):
 
             # Run the graph and fetch some of the nodes.
             _, l = sess.run([optimizer, loss], feed_dict=train_feed_dict)
-            print l
             print '[%s]' % time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
             print '[Train] @ iter: %d,' % (epoch * self.num_batch + batch_step),
             print 'train_loss: %.5f' % l
