@@ -26,12 +26,13 @@ class Knrm(BaseNN):
 
     emb_in = Unicode('None', help="initial embedding. Terms should be hashed to ids.").tag(config=True)
     train_in = Unicode('None', help="initial train.").tag(config=True)
-    test_in  = Unicode('None', help="initial test.").tag(config=True)
+    test_in_list  = Unicode('None', help="initial test.").tag(config=True)
     valid_in_list = Unicode('None', help="initial valid.").tag(config=True)
     checkpoint_dir = Unicode('None', help="checkpoint saver's path.").tag(config=True)
     save_frequency = Int(100, help="save frequency").tag(config=True)
     print_frequency = Int(2, help="print score frequency").tag(config=True)
     metrics = Unicode('None', help="Metrics.").tag(config=True)
+    model_name = Unicode('None', help="Click model.").tag(config=True)
     lamb = Float(0.5, help="guassian_sigma = lamb * bin_size").tag(config=True)
     learning_rate = Float(0.001, help="learning rate, default is 0.001").tag(config=True)
     epsilon = Float(0.00001, help="Epsilon for Adam").tag(config=True)
@@ -146,7 +147,8 @@ class Knrm(BaseNN):
 
         train_pair_file_path = self.train_in
         val_pair_file_path_list = self.valid_in_list.strip().split(";")
-        test_pair_file_path = self.test_in
+        test_pair_file_path_list = self.test_in_list.strip().split(";")
+        #test_pair_file_path = self.test_in
         # nodes to hold mu sigma
         input_mu = tf.placeholder(tf.float32, shape=[self.n_bins], name='input_mu')
         input_sigma = tf.placeholder(tf.float32, shape=[self.n_bins], name='input_sigma')
@@ -240,7 +242,7 @@ class Knrm(BaseNN):
 
                 ##########  VALIDATION  ###########
                 if (epoch % self.print_frequency == 0):
-                    output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", "K-NRM", 'val', str(epoch+1)), 'w')
+                    output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", model_name, 'val', str(epoch+1)), 'w')
                 else:
                     output = None
                 self.valid_in_train(val_pair_file_path_list, train_inputs_q, train_inputs_pos_d,
@@ -251,10 +253,10 @@ class Knrm(BaseNN):
 
                 ##########  TEST  ###########
                 if (epoch % self.print_frequency == 0):
-                    output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", "K-NRM", 'test', str(epoch+1)), 'w')
+                    output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", model_name, 'test', str(epoch+1)), 'w')
                 else:
                     output = None
-                self.test_in_train(train_inputs_q, train_inputs_pos_d, train_inputs_neg_d,
+                self.test_in_train(test_pair_file_path_list, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d,
                                    train_input_q_weights, input_mu, input_sigma, input_train_mask_pos,
                                    input_train_mask_neg, sess, o_pos, epoch, output)
                 if (epoch % self.print_frequency == 0):
@@ -262,12 +264,12 @@ class Knrm(BaseNN):
 
                 # save data
                 if (epoch % self.save_frequency == 0):
-                    saver.save(sess, self.checkpoint_dir + '/data.ckpt')
+                    saver.save(sess, self.checkpoint_dir + '/data_' + model_name + '.ckpt')
                 # END epoch
                 print ''
 
             # end training
-            saver.save(sess, self.checkpoint_dir + '/data.ckpt')
+            saver.save(sess, self.checkpoint_dir + '/data_' + model_name + '.ckpt')
 
     def train_in_train(self, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d, train_input_q_weights,
                        input_mu,  input_sigma, input_train_mask_pos, input_train_mask_neg, input_labels, sess,
@@ -300,6 +302,7 @@ class Knrm(BaseNN):
                        train_input_q_weights, input_mu, input_sigma, input_train_mask_pos, input_train_mask_neg,
                        sess, o_pos, epoch, loss, output):
         for filenum in range(len(val_pair_file_path_list)):
+            output.write('%s\n' % test_pair_file_path_list[filenum])
             scoredict = {}
             metricdict = {}
             # total_loss = 0
@@ -324,9 +327,9 @@ class Knrm(BaseNN):
                 for num, i in enumerate(X_val['qid']):
                     if not scoredict.has_key(X_val['qid'][num]):
                         scoredict[X_val['qid'][num]] = {}
-                    scoredict[X_val['qid'][num]][X_val['uid'][num]] = (o_p[num], Y_val[num])
+                    scoredict[X_val['qid'][num]][X_val['uid'][num]] = (o_p[num][0], Y_val[num])
                     if (output!=None):
-                        output.write('%s\t%s\t%s\t%s\n' % (i, X_val['uid'][num], Y_val[num], o_p[num]))
+                        output.write('%s\t%s\t%s\t%s\n' % (i, X_val['uid'][num], Y_val[num], o_p[num][0]))
             for q in scoredict.keys():
                 y_pred = []
                 y_label = []
@@ -348,56 +351,60 @@ class Knrm(BaseNN):
             #     outstr += str(i) + ": " + str(metricdict[i])+ ';\t'
             # print outstr
 
+            output.write('%s\n\n\n' % 'done' )
             print '[%s]' % time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
             print '[Eval] @ epoch: %d,' % (epoch + 1),
             # print 'valid loss: %.5f' % valid_loss,
             print ', '.join(['%s: %.5f' % (k, metricdict[k] / len(scoredict)) for k in metricdict])
 
-    def test_in_train(self, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d, train_input_q_weights,
+    def test_in_train(self, test_pair_file_path_list, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d, train_input_q_weights,
                       input_mu, input_sigma, input_train_mask_pos, input_train_mask_neg,
                       sess, o_pos, epoch, output):
-        scoredict = {}
-        metricdict = {}
-        for BATCH in self.test_data_generator.pointwise_generate():  # test_pair_file_path, self.batch_size, with_idf=True):
-            X_test, Y_test = BATCH
-            M_pos = self.gen_mask(X_test[u'q'], X_test[u'd'])
-            M_neg = self.gen_mask(X_test[u'q'], np.zeros([self.batch_size, self.max_d_len]))
-            test_feed_dict = {train_inputs_q: self.re_pad(X_test[u'q'], self.batch_size),
-                              train_inputs_pos_d: self.re_pad(X_test[u'd'], self.batch_size),
-                              train_inputs_neg_d: self.re_pad(np.zeros([self.batch_size, self.max_d_len]),
-                                                              self.batch_size),
-                              train_input_q_weights: self.re_pad(X_test[u'idf'], self.batch_size),
-                              input_mu: self.mus,
-                              input_sigma: self.sigmas,
-                              input_train_mask_pos: M_pos,
-                              input_train_mask_neg: M_neg}
+        for filenum in range(len(test_pair_file_path_list)):
+            output.write('%s\n' % test_pair_file_path_list[filenum])
+            scoredict = {}
+            metricdict = {}
+            for BATCH in self.test_data_generator[filenum].pointwise_generate():  # test_pair_file_path, self.batch_size, with_idf=True):
+                X_test, Y_test = BATCH
+                M_pos = self.gen_mask(X_test[u'q'], X_test[u'd'])
+                M_neg = self.gen_mask(X_test[u'q'], np.zeros([self.batch_size, self.max_d_len]))
+                test_feed_dict = {train_inputs_q: self.re_pad(X_test[u'q'], self.batch_size),
+                                  train_inputs_pos_d: self.re_pad(X_test[u'd'], self.batch_size),
+                                  train_inputs_neg_d: self.re_pad(np.zeros([self.batch_size, self.max_d_len]),
+                                                                  self.batch_size),
+                                  train_input_q_weights: self.re_pad(X_test[u'idf'], self.batch_size),
+                                  input_mu: self.mus,
+                                  input_sigma: self.sigmas,
+                                  input_train_mask_pos: M_pos,
+                                  input_train_mask_neg: M_neg}
 
-            o_p = sess.run(o_pos, feed_dict=test_feed_dict)
-            for num, i in enumerate(X_test['qid']):
-                if not scoredict.has_key(X_test['qid'][num]):
-                    scoredict[X_test['qid'][num]] = {}
-                scoredict[X_test['qid'][num]][X_test['uid'][num]] = (o_p[num], Y_test[num])
-                if (output!= None):
-                    output.write('%s\t%s\t%s\t%s\n' % (i, X_test['uid'][num], Y_test[num], o_p[num]))###WRONG!!!###
-            
-        for q in scoredict.keys():
-            y_pred = []
-            y_label = []
-            for doc in scoredict[q].keys():
-                pred, label = scoredict[q][doc]
-                y_pred.append(pred)
-                y_label.append(label)
-            metrics = calc_metric(self.metriclist, y_pred, y_label)
-            for i in metrics.keys():
-                if i not in metricdict.keys():
-                    metricdict[i] = 0
-                metricdict[i] += metrics[i]
-        print '[%s]' % time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
-        print '[Eval] @ epoch: %d,' % (epoch + 1),
-        # print 'valid loss: %.5f' % valid_loss,
-        print ', '.join(['%s: %.5f' % (k, metricdict[k] / len(scoredict)) for k in metricdict])
-
-
+                o_p = sess.run(o_pos, feed_dict=test_feed_dict)
+                for num, i in enumerate(X_test['qid']):
+                    if not scoredict.has_key(X_test['qid'][num]):
+                        scoredict[X_test['qid'][num]] = {}
+                    scoredict[X_test['qid'][num]][X_test['uid'][num]] = (o_p[num][0], Y_test[num])
+                    if (output!= None):
+                        output.write('%s\t%s\t%s\t%s\n' % (i, X_test['uid'][num], Y_test[num], o_p[num][0]))
+                
+            for q in scoredict.keys():
+                y_pred = []
+                y_label = []
+                for doc in scoredict[q].keys():
+                    pred, label = scoredict[q][doc]
+                    y_pred.append(pred)
+                    y_label.append(label)
+                metrics = calc_metric(self.metriclist, y_pred, y_label)
+                for i in metrics.keys():
+                    if i not in metricdict.keys():
+                        metricdict[i] = 0
+                    metricdict[i] += metrics[i]
+            output.write('%s\n\n\n' % 'done' )
+            print '[%s]' % time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+            print '[Eval] @ epoch: %d,' % (epoch + 1),
+            # print 'valid loss: %.5f' % valid_loss,
+            print ', '.join(['%s: %.5f' % (k, metricdict[k] / len(scoredict)) for k in metricdict])
+    
+    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--config")

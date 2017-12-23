@@ -148,12 +148,12 @@ def eval_ndcg(y_true, y_pred, k = 10, rel_threshold=0.):
         if i >= k:
             break
         if g > rel_threshold:
-            idcg += (math.pow(2., g) - 1.) / math.log(2. + i) #change
+            idcg += g / math.log(2. + i) * math.log(2.)
     for i, (g,p) in enumerate(c_p):
         if i >= k:
             break
         if g > rel_threshold:
-            ndcg += (math.pow(2., g) - 1.) / math.log(2. + i)
+            ndcg += g / math.log(2. + i) * math.log(2.)
     if idcg == 0.:
         return 0.
     else:
