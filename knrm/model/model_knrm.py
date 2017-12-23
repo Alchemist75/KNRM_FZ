@@ -242,7 +242,7 @@ class Knrm(BaseNN):
 
                 ##########  VALIDATION  ###########
                 if (epoch % self.print_frequency == 0):
-                    output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", model_name, 'val', str(epoch+1)), 'w')
+                    output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", self.model_name, 'val', str(epoch+1)), 'w')
                 else:
                     output = None
                 self.valid_in_train(val_pair_file_path_list, train_inputs_q, train_inputs_pos_d,
@@ -253,7 +253,7 @@ class Knrm(BaseNN):
 
                 ##########  TEST  ###########
                 if (epoch % self.print_frequency == 0):
-                    output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", model_name, 'test', str(epoch+1)), 'w')
+                    output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", self.model_name, 'test', str(epoch+1)), 'w')
                 else:
                     output = None
                 self.test_in_train(test_pair_file_path_list, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d,
@@ -264,12 +264,12 @@ class Knrm(BaseNN):
 
                 # save data
                 if (epoch % self.save_frequency == 0):
-                    saver.save(sess, self.checkpoint_dir + '/data_' + model_name + '.ckpt')
+                    saver.save(sess, self.checkpoint_dir + '/data_' + self.model_name + '.ckpt')
                 # END epoch
                 print ''
 
             # end training
-            saver.save(sess, self.checkpoint_dir + '/data_' + model_name + '.ckpt')
+            saver.save(sess, self.checkpoint_dir + '/data_' + self.model_name + '.ckpt')
 
     def train_in_train(self, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d, train_input_q_weights,
                        input_mu,  input_sigma, input_train_mask_pos, input_train_mask_neg, input_labels, sess,
@@ -302,7 +302,7 @@ class Knrm(BaseNN):
                        train_input_q_weights, input_mu, input_sigma, input_train_mask_pos, input_train_mask_neg,
                        sess, o_pos, epoch, loss, output):
         for filenum in range(len(val_pair_file_path_list)):
-            output.write('%s\n' % test_pair_file_path_list[filenum])
+            output.write('%s\n' % val_pair_file_path_list[filenum])
             scoredict = {}
             metricdict = {}
             # total_loss = 0
