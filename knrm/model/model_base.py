@@ -34,7 +34,7 @@ class BaseNN(Configurable):
     vocabulary_size = Int(20, help="vocabulary size").tag(config=True)
     valid_in_list = Unicode('None', help="initial valid.").tag(config=True)
     train_in = Unicode('None', help="initial train.").tag(config=True)
-    test_in  = Unicode('None', help="initial test.").tag(config=True)
+    test_in_list  = Unicode('None', help="initial test.").tag(config=True)
     # valid_in_list = Unicode('None', help="initial valid.").tag(config=True)
 
     def __init__(self, **kwargs):
@@ -47,8 +47,10 @@ class BaseNN(Configurable):
         for i in range(len(self.valid_in_list.split(';'))):
             self.val_data_generator.append(DataGenerator(config=self.config, pair_stream_dir=self.valid_in_list.split(';')[i],
                                                          isPointwise=True, word_dict = self.word_dict, idf_dict = self.idf_dict))
-        self.test_data_generator = DataGenerator(config=self.config, pair_stream_dir=self.test_in, isPointwise=True,
-                                                word_dict=self.word_dict, idf_dict=self.idf_dict)
+        self.test_data_generator = []
+        for i in range(len(self.test_in_list.split(';'))):
+            self.test_data_generator.append(DataGenerator(config=self.config, pair_stream_dir=self.test_in_list.split(';')[i],
+                                                         isPointwise=True, word_dict = self.word_dict, idf_dict = self.idf_dict))
 
     @staticmethod
     def kernal_mus(n_kernels, use_exact):
