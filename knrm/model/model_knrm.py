@@ -184,10 +184,10 @@ class Knrm(BaseNN):
         mid_res_neg, o_neg = self.model(train_inputs_q, train_inputs_neg_d, rs_train_mask_neg, rs_q_weights, mu, sigma)
         
         o_all = tf.concat(1,[o_pos,o_neg])
-        print o_all
+        #print o_all
         o_all = tf.nn.softmax(o_all)
         softmaxed_label = tf.nn.softmax(input_labels)
-        print softmaxed_label
+        #print softmaxed_label
         #print o_all
         #o_pos = o_all[:,0]
         #o_neg = o_all[:,1]
@@ -361,7 +361,7 @@ class Knrm(BaseNN):
     def test_in_train(self, test_pair_file_path_list, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d, train_input_q_weights,
                       input_mu, input_sigma, input_train_mask_pos, input_train_mask_neg,
                       sess, o_pos, epoch, output):
-        print test_pair_file_path_list
+        #print test_pair_file_path_list
         for filenum in range(len(test_pair_file_path_list)):
             output.write('%s\n' % test_pair_file_path_list[filenum])
             scoredict = {}

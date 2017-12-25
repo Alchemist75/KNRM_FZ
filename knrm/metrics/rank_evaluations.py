@@ -20,11 +20,14 @@ def calc_metric(metric_list,y_pred,y_label):
             res[i] = eval_map(arr_label,arr_pred)
         else:
             lis = i.strip().split('@')
-            if (lis[0]=='p'):
+            if (lis[0]=='precision'):
                 res[i] = eval_precision(arr_label,arr_pred,k=int(lis[1]))
             else:
-                if (lis[0]=="ndcg"):
-                    res[i] = eval_ndcg(arr_label,arr_pred,k=int(lis[1]))
+                if (lis[0]=='recall'):
+                    res[i] = eval_recall(arr_label,arr_pred,k=int(lis[1]))
+                else:
+                    if (lis[0]=="ndcg"):
+                        res[i] = eval_ndcg(arr_label,arr_pred,k=int(lis[1]))
     return res 
 '''
 class rank_eval():
@@ -185,3 +188,32 @@ def eval_precision(y_true, y_pred, k = 10, rel_threshold=0.):
 def eval_mrr(y_true, y_pred, k = 10):
     s = 0.
     return s
+
+# compute recall@k
+# the input is all documents under a single query
+def eval_recall(y_true,y_pred,k=10,rel_threshold=0.):
+    if k <= 0:
+        return 0.
+    s = 0.
+    #y_true = _to_list(np.squeeze(y_true).tolist()) # y_true: the ground truth scores for documents under a query
+    #y_pred = _to_list(np.squeeze(y_pred).tolist()) # y_pred: the predicted scores for documents under a query
+    y_true = np.squeeze(y_true) # y_true: the ground truth scores for documents under a query
+    y_pred = np.squeeze(y_pred) # y_pred: the predicted scores for documents under a query
+    pos_count = sum(i > rel_threshold for i in y_true) # total number of positive documents under this query
+    #c = zip(y_true, y_pred)
+    if (y_true.shape!=()):
+        c = zip(y_true, y_pred)
+    else:
+        c = np.array([[y_true],[y_pred]])
+    random.shuffle(c)
+    c = sorted(c, key=lambda x: x[1], reverse=True)
+    ipos = 0
+    recall = 0.
+    for i, (g, p) in enumerate(c):
+        if i >= k:
+            break
+        if g > rel_threshold:
+            recall += 1
+    recall /= pos_count
+    return recall
+

@@ -50,6 +50,7 @@ class DataGenerator(Configurable):
     #                    help='titles term id csv, must be padded').tag(config=True)
     max_q_len = Int(10, help='max q len').tag(config=True)
     max_d_len = Int(50, help='max document len').tag(config=True)
+    label_num = Int(0, help='for extra labels').tag(config=True)
     query_per_iter = Int(2, help="queries").tag(config=True)
     batch_per_iter = Int(10, help="batch").tag(config=True)
     batch_size = Int(16, help="bs").tag(config=True)
@@ -109,7 +110,12 @@ class DataGenerator(Configurable):
         for f in qfile_list:
             with open(f, "r") as pair_stream:
                 for line in pair_stream:
-                    qid, query, uid, doc, label = line.split('\t')
+                    #qid, query, uid, doc, label = line.split('\t')
+                    qid, query, uid, doc = line.split('\t')[0:4]
+                    if (len(line.split('\t'))>5):
+                        label = line.split('\t')[4+self.label_num]
+                    else:
+                        label = line.split('\t')[4]
                     qid = qid.strip()
                     uid = uid.strip()
                     query = char2list(query.strip().split(), self.word_dict)
@@ -191,7 +197,12 @@ class DataGenerator(Configurable):
         for fn in qfiles:
             with open(fn) as file:
                 for line in file:
-                    qid, query, uid, doc, label = line.split('\t')
+                    #qid, query, uid, doc, label = line.split('\t')
+                    qid, query, uid, doc = line.split('\t')[0:4]
+                    if (len(line.split('\t'))>5):
+                        label = line.split('\t')[4+self.label_num]
+                    else:
+                        label = line.split('\t')[4]
                     qid = qid.strip()
                     uid = uid.strip()
                     query = char2list(query.strip().split(), self.word_dict)
