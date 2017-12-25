@@ -144,10 +144,14 @@ class Knrm(BaseNN):
         # This is where training samples and labels are fed to the graph.
         # These placeholder nodes will be fed a batch of training data at each
         # training step using the {feed_dict} argument to the Run() call below.
-
+        print("\"net_name\": \"%s\"\n" % (self.model_name))
         train_pair_file_path = self.train_in
         val_pair_file_path_list = self.valid_in_list.strip().split(";")
         test_pair_file_path_list = self.test_in_list.strip().split(";")
+        for i in val_pair_file_path_list:
+            print "EVAL phase\n"
+        for i in test_pair_file_path_list:
+            print "EVAL phase\n"
         #test_pair_file_path = self.test_in
         # nodes to hold mu sigma
         input_mu = tf.placeholder(tf.float32, shape=[self.n_bins], name='input_mu')
@@ -242,15 +246,9 @@ class Knrm(BaseNN):
                                     optimizer, loss, epoch)
 
                 ##########  VALIDATION  ###########
-                if (epoch % self.print_frequency == 0):
-                    output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", self.model_name, 'val', str(epoch+1)), 'w')
-                else:
-                    output = None
                 self.valid_in_train(val_pair_file_path_list, train_inputs_q, train_inputs_pos_d,
                                     train_inputs_neg_d, train_input_q_weights, input_mu, input_sigma,
                                     input_train_mask_pos, input_train_mask_neg, sess, o_pos,  epoch, loss, output)
-                if (epoch % self.print_frequency == 0):
-                    output.close()
 
                 ##########  TEST  ###########
                 if (epoch % self.print_frequency == 0):
@@ -303,7 +301,10 @@ class Knrm(BaseNN):
                        train_input_q_weights, input_mu, input_sigma, input_train_mask_pos, input_train_mask_neg,
                        sess, o_pos, epoch, loss, output):
         for filenum in range(len(val_pair_file_path_list)):
-            output.write('%s\n' % val_pair_file_path_list[filenum])
+            if (epoch % self.print_frequency == 0):
+                output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", self.model_name, 'valid', str(epoch+1)), 'w')
+            else:
+                output = None
             scoredict = {}
             metricdict = {}
             # total_loss = 0
@@ -351,8 +352,8 @@ class Knrm(BaseNN):
             #     metricdict[i]/=len(scoredict.keys())
             #     outstr += str(i) + ": " + str(metricdict[i])+ ';\t'
             # print outstr
-
-            output.write('%s\n\n\n' % 'done' )
+            if (epoch % self.print_frequency == 0):
+                output.close()
             print '[%s]' % time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
             print '[Eval] @ epoch: %d,' % (epoch + 1),
             # print 'valid loss: %.5f' % valid_loss,
@@ -363,7 +364,10 @@ class Knrm(BaseNN):
                       sess, o_pos, epoch, output):
         #print test_pair_file_path_list
         for filenum in range(len(test_pair_file_path_list)):
-            output.write('%s\n' % test_pair_file_path_list[filenum])
+            if (epoch % self.print_frequency == 0):
+                output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", self.model_name, 'test', str(epoch+1)), 'w')
+            else:
+                output = None
             scoredict = {}
             metricdict = {}
             for BATCH in self.test_data_generator[filenum].pointwise_generate():  # test_pair_file_path, self.batch_size, with_idf=True):
@@ -400,7 +404,8 @@ class Knrm(BaseNN):
                     if i not in metricdict.keys():
                         metricdict[i] = 0
                     metricdict[i] += metrics[i]
-            output.write('%s\n\n\n' % 'done' )
+            if (epoch % self.print_frequency == 0):
+                output.close()
             print '[%s]' % time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
             print '[Eval] @ epoch: %d,' % (epoch + 1),
             # print 'valid loss: %.5f' % valid_loss,
@@ -428,6 +433,8 @@ if __name__ == '__main__':
         for line in config_file:
             line = line.strip()
             if len(line) < 1:
+                continue
+            if "num_batch" in line:
                 continue
             print line
     print '##### CONFIG #####\n'
