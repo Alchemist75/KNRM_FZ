@@ -248,12 +248,12 @@ class Knrm(BaseNN):
                 ##########  VALIDATION  ###########
                 self.valid_in_train(val_pair_file_path_list, train_inputs_q, train_inputs_pos_d,
                                     train_inputs_neg_d, train_input_q_weights, input_mu, input_sigma,
-                                    input_train_mask_pos, input_train_mask_neg, sess, o_pos,  epoch, loss, output)
+                                    input_train_mask_pos, input_train_mask_neg, sess, o_pos,  epoch, loss)
 
                 ##########  TEST  ###########
                 self.test_in_train(test_pair_file_path_list, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d,
                                    train_input_q_weights, input_mu, input_sigma, input_train_mask_pos,
-                                   input_train_mask_neg, sess, o_pos, epoch, output)
+                                   input_train_mask_neg, sess, o_pos, epoch)
 
                 # save data
                 if (epoch % self.save_frequency == 0):
@@ -293,10 +293,11 @@ class Knrm(BaseNN):
 
     def valid_in_train(self, val_pair_file_path_list, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d,
                        train_input_q_weights, input_mu, input_sigma, input_train_mask_pos, input_train_mask_neg,
-                       sess, o_pos, epoch, loss, output):
+                       sess, o_pos, epoch, loss):
         for filenum in range(len(val_pair_file_path_list)):
+	    output = None
             if (epoch % self.print_frequency == 0):
-                output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", self.model_name, 'valid', str(epoch+1)), 'w')
+                output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", self.model_name, 'valid'+str(filenum), str(epoch+1)), 'w')
             else:
                 output = None
             scoredict = {}
@@ -396,11 +397,12 @@ class Knrm(BaseNN):
 
     def test_in_train(self, test_pair_file_path_list, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d, train_input_q_weights,
                       input_mu, input_sigma, input_train_mask_pos, input_train_mask_neg,
-                      sess, o_pos, epoch, output):
+                      sess, o_pos, epoch):
         #print test_pair_file_path_list
         for filenum in range(len(test_pair_file_path_list)):
+	    output = None
             if (epoch % self.print_frequency == 0):
-                output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", self.model_name, 'test', str(epoch+1)), 'w')
+                output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", self.model_name, 'test'+str(filenum), str(epoch+1)), 'w')
             else:
                 output = None
             scoredict = {}
