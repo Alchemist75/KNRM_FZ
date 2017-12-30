@@ -251,15 +251,9 @@ class Knrm(BaseNN):
                                     input_train_mask_pos, input_train_mask_neg, sess, o_pos,  epoch, loss, output)
 
                 ##########  TEST  ###########
-                if (epoch % self.print_frequency == 0):
-                    output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", self.model_name, 'test', str(epoch+1)), 'w')
-                else:
-                    output = None
                 self.test_in_train(test_pair_file_path_list, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d,
                                    train_input_q_weights, input_mu, input_sigma, input_train_mask_pos,
                                    input_train_mask_neg, sess, o_pos, epoch, output)
-                if (epoch % self.print_frequency == 0):
-                    output.close()
 
                 # save data
                 if (epoch % self.save_frequency == 0):
@@ -309,6 +303,9 @@ class Knrm(BaseNN):
             metricdict = {}
             # total_loss = 0
             batch_cnt = 0
+            qid_label_uid = {}
+            qid_uid_score = {}
+            # qid_uid_label = {}
             for BATCH in self.val_data_generator[filenum].pointwise_generate():  # val_pair_file_path_list[filenum], self.batch_size, with_idf=True):
                 batch_cnt = batch_cnt + 1
                 X_val, Y_val = BATCH
@@ -332,6 +329,42 @@ class Knrm(BaseNN):
                     scoredict[X_val['qid'][num]][X_val['uid'][num]] = (o_p[num][0], Y_val[num])
                     if (output!=None):
                         output.write('%s\t%s\t%s\t%s\n' % (i, X_val['uid'][num], Y_val[num], o_p[num][0]))
+############################################            
+                    qid = i
+                    uid = X_val['uid'][num]
+                    label = Y_val[num]
+                    score = o_p[num][0]
+
+                    if qid not in qid_label_uid:
+                        qid_label_uid[qid] = {}
+                    if label not in qid_label_uid[qid]:
+                        qid_label_uid[qid][label] = []
+                    qid_label_uid[qid][label].append(uid)
+
+                    if qid not in qid_uid_score:
+                        qid_uid_score[qid] = {}
+                    if uid not in qid_uid_score[qid]:
+                        qid_uid_score[qid][uid] = score
+                        # if qid not in qid_uid_label:
+                        #     qid_uid_label[qid] = {}
+                        # if uid not in qid_uid_label[qid]:
+                        #     qid_uid_label[qid][uid] = label
+            loss_y_pred = []
+            loss_y_true = []
+            for qid in qid_label_uid.keys():
+                for hl in qid_label_uid[qid].keys():
+                    for ll in qid_label_uid[qid].keys():
+                        if ll >= hl:
+                            continue
+                        for hu in qid_label_uid[qid][hl]:
+                            for lu in qid_label_uid[qid][ll]:
+                                loss_y_true.append([hl, ll])
+                                loss_y_pred.append([qid_uid_score[qid][hu], qid_uid_score[qid][lu]])
+
+            loss_res = cal_eval_loss(loss_y_pred, loss_y_true, 'vald', ['cross_entropy_loss'])
+#################################################            
+            
+            
             for q in scoredict.keys():
                 y_pred = []
                 y_label = []
@@ -354,9 +387,11 @@ class Knrm(BaseNN):
             # print outstr
             if (epoch % self.print_frequency == 0):
                 output.close()
+
             print '[%s]' % time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
             print '[Eval] @ epoch: %d,' % (epoch + 1),
             # print 'valid loss: %.5f' % valid_loss,
+            print ', '.join(['%s: %.5f' % (k, loss_res[k]) for k in loss_res]),
             print ', '.join(['%s: %.5f' % (k, metricdict[k] / len(scoredict)) for k in metricdict])
 
     def test_in_train(self, test_pair_file_path_list, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d, train_input_q_weights,
@@ -411,7 +446,39 @@ class Knrm(BaseNN):
             # print 'valid loss: %.5f' % valid_loss,
             print ', '.join(['%s: %.5f' % (k, metricdict[k] / len(scoredict)) for k in metricdict])
     
-    
+def cal_cross_entropy_loss(y_true, y_pred, from_logits=False):
+    if from_logits:
+        exp_y_pred = np.exp(y_pred)
+        sum_exp_y_pred = np.sum(exp_y_pred, axis=1)[:, None]
+        softmax_y_pred = exp_y_pred / sum_exp_y_pred
+        sum_pred_true = np.sum(y_true * softmax_y_pred, axis=1)
+        crossentropy_loss = -1. * np.mean(sum_pred_true)
+    else:
+        sum_pred_true = np.sum(y_true * y_pred, axis=1)
+        crossentropy_loss = -1. * np.mean(sum_pred_true)
+
+    return crossentropy_loss
+
+
+def cal_eval_loss(y_pred, y_true, tag, train_loss):
+    res = {}
+    if 'cross_entropy_loss' in train_loss:
+        y_true = np.exp(y_true)
+        y_true /= np.sum(y_true, axis=1)[:,None]
+
+        # cross entropy loss with softmax
+        bottom = cal_cross_entropy_loss(y_true, y_true, from_logits=False)
+        res['%s_cross_entropy_loss' % tag] = cal_cross_entropy_loss(y_true, y_pred, from_logits=True) - bottom
+
+    # if 'rank_hinge_loss' in train_loss:
+    #     hinge_loss_list = []
+    #     for qid, dp_id, dn_id in all_pairs_rel_score:
+    #         dp_score, dn_score = all_pairs_rel_score[(qid, dp_id, dn_id)]['score']
+    #         hinge_loss_list.append(max(0., 1. + dn_score - dp_score))
+    #     res['%s_rank_hinge_loss' % tag] = np.mean(hinge_loss_list)
+
+    return res
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--config")
