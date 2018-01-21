@@ -138,6 +138,145 @@ class Knrm(BaseNN):
         # return some mid result and final matching score.
         return (sim, feats_flat), o
 
+    def test(self, load_model=True):
+
+        # PLACEHOLDERS
+        # This is where training samples and labels are fed to the graph.
+        # These placeholder nodes will be fed a batch of training data at each
+        # training step using the {feed_dict} argument to the Run() call below.
+        print("\"net_name\": \"%s\"\n" % (self.model_name))
+        train_pair_file_path = self.train_in
+        val_pair_file_path_list = self.valid_in_list.strip().split(";")
+        test_pair_file_path_list = self.test_in_list.strip().split(";")
+        for i in val_pair_file_path_list:
+            print "EVAL phase\n"
+        for i in test_pair_file_path_list:
+            print "EVAL phase\n"
+        # test_pair_file_path = self.test_in
+        # nodes to hold mu sigma
+        input_mu = tf.placeholder(tf.float32, shape=[self.n_bins], name='input_mu')
+        input_sigma = tf.placeholder(tf.float32, shape=[self.n_bins], name='input_sigma')
+
+        # nodes to hold query and qterm idf. padding terms will have idf=0
+        train_inputs_q = tf.placeholder(tf.int32, shape=[self.batch_size, self.max_q_len], name='train_inputs_q')
+        train_input_q_weights = tf.placeholder(tf.float32, shape=[self.batch_size, self.max_q_len], name='idf')
+
+        # nodes to hold training data, postive samples
+        train_inputs_pos_d = tf.placeholder(tf.int32, shape=[self.batch_size, self.max_d_len],
+                                            name='train_inputs_pos_d')
+
+        # nodes to hold negative samples
+        train_inputs_neg_d = tf.placeholder(tf.int32, shape=[self.batch_size, self.max_d_len])
+
+        # mask padding terms
+        # assume all termid >= 1
+        # padding with 0
+        input_train_mask_pos = tf.placeholder(tf.float32, shape=[self.batch_size, self.max_q_len, self.max_d_len])
+        input_train_mask_neg = tf.placeholder(tf.float32, shape=[self.batch_size, self.max_q_len, self.max_d_len])
+
+        input_labels = tf.placeholder(tf.float32, shape=[self.batch_size, 2])
+
+        # reshape place holders
+        mu = tf.reshape(input_mu, shape=[1, 1, self.n_bins])
+        sigma = tf.reshape(input_sigma, shape=[1, 1, self.n_bins])
+        rs_train_mask_pos = tf.reshape(input_train_mask_pos, [self.batch_size, self.max_q_len, self.max_d_len, 1])
+        rs_train_mask_neg = tf.reshape(input_train_mask_neg, [self.batch_size, self.max_q_len, self.max_d_len, 1])
+        rs_q_weights = tf.reshape(train_input_q_weights, shape=[self.batch_size, self.max_q_len, 1])
+
+        # training graph
+        mid_res_pos, o_pos = self.model(train_inputs_q, train_inputs_pos_d, rs_train_mask_pos, rs_q_weights, mu,
+                                        sigma)
+        mid_res_neg, o_neg = self.model(train_inputs_q, train_inputs_neg_d, rs_train_mask_neg, rs_q_weights, mu,
+                                        sigma)
+
+        o_all = tf.concat(1, [o_pos, o_neg])
+        # print o_all
+        o_all = tf.nn.softmax(o_all)
+        softmaxed_label = tf.nn.softmax(input_labels)
+        # print softmaxed_label
+        # print o_all
+        # o_pos = o_all[:,0]
+        # o_neg = o_all[:,1]
+        # print o_pos, o_neg
+        # loss = tf.reduce_mean(tf.maximum(0.0, 1 - o_pos + o_neg))
+
+        bottom = -tf.reduce_sum(softmaxed_label * tf.log(tf.clip_by_value(softmaxed_label, 0.0001, 1 - 0.0001)),
+                                axis=-1)
+        loss = tf.reduce_mean(
+            -tf.reduce_sum(softmaxed_label * tf.log(tf.clip_by_value(o_all, 0.0001, 1 - 0.0001)), axis=-1) - bottom)
+
+        # optimizer
+        optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate, epsilon=self.epsilon).minimize(loss)
+
+        # Create a local session to run the training.
+        config_tf = tf.ConfigProto()
+        config_tf.gpu_options.allow_growth = True
+        # sess = tf.Session(config=config)
+        with tf.Session(config=config_tf) as sess:
+
+            saver = tf.train.Saver()
+            # start_time = time.time()
+
+            # Run all the initializers to prepare the trainable parameters.
+
+            if not load_model:
+                print "not loading model..."
+                exit(0)
+                # print "Initializing a new model..."
+                # tf.initialize_all_variables().run()
+                # print('New model initialized!')
+            else:
+                ckpt = tf.train.get_checkpoint_state(self.checkpoint_dir)
+                if ckpt and ckpt.model_checkpoint_path:
+                    saver.restore(sess, ckpt.model_checkpoint_path)
+                    print "model loaded!"
+                else:
+                    print "no data found"
+                    exit(-1)
+
+            print "Initializing a new model..."
+            tf.initialize_all_variables().run()
+            print('New model initialized!')
+
+            # Loop through training steps.
+            # step = 0
+            # for epoch in range(int(self.max_epochs)):
+            for epoch in range(1):  # int(self.max_epochs)):
+                # print "EPOCH: "+str(epoch)
+
+                # pair_stream = open(train_pair_file_path)
+                ##########  TRAIN  ###########
+                # self.train_in_train(train_inputs_q, train_inputs_pos_d, train_inputs_neg_d, train_input_q_weights,
+                #                     input_mu, input_sigma, input_train_mask_pos, input_train_mask_neg, input_labels,
+                #                     sess,
+                #                     optimizer, loss, epoch)
+
+                ##########  VALIDATION  ###########
+                # self.valid_in_train(val_pair_file_path_list, train_inputs_q, train_inputs_pos_d,
+                #                     train_inputs_neg_d, train_input_q_weights, input_mu, input_sigma,
+                #                     input_train_mask_pos, input_train_mask_neg, sess, o_pos, epoch, loss, output)
+
+                ##########  TEST  ###########
+                # if (epoch % self.print_frequency == 0):
+                #     output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % (
+                #         "K-NRM", self.model_name, 'test', str(epoch + 1)), 'w')
+                # else:
+                #     output = None
+                self.test_in_train(test_pair_file_path_list, train_inputs_q, train_inputs_pos_d, train_inputs_neg_d,
+                                   train_input_q_weights, input_mu, input_sigma, input_train_mask_pos,
+                                   input_train_mask_neg, sess, o_pos, epoch)
+                # if (epoch % self.print_frequency == 0):
+                #     output.close()
+
+                # save data
+                # if (epoch % self.save_frequency == 0):
+                #     saver.save(sess, self.checkpoint_dir + '/data_' + self.model_name + '.ckpt')
+                # END epoch
+                print ''
+
+                # end training
+                # saver.save(sess, self.checkpoint_dir + '/data_' + self.model_name + '.ckpt')
+
     def train(self, train_size, load_model=False):
 
         # PLACEHOLDERS
@@ -186,7 +325,7 @@ class Knrm(BaseNN):
         # training graph
         mid_res_pos, o_pos = self.model(train_inputs_q, train_inputs_pos_d, rs_train_mask_pos, rs_q_weights, mu, sigma)
         mid_res_neg, o_neg = self.model(train_inputs_q, train_inputs_neg_d, rs_train_mask_neg, rs_q_weights, mu, sigma)
-        
+
         o_all = tf.concat(1,[o_pos,o_neg])
         #print o_all
         o_all = tf.nn.softmax(o_all)
@@ -197,12 +336,12 @@ class Knrm(BaseNN):
         #o_neg = o_all[:,1]
         #print o_pos, o_neg
         #loss = tf.reduce_mean(tf.maximum(0.0, 1 - o_pos + o_neg))       
-        
+
         bottom = -tf.reduce_sum(softmaxed_label*tf.log(tf.clip_by_value(softmaxed_label,0.0001,1-0.0001)),axis=-1)
         loss = tf.reduce_mean(-tf.reduce_sum(softmaxed_label*tf.log(tf.clip_by_value(o_all,0.0001,1-0.0001)),axis=-1) - bottom)
-        
 
-        
+
+
         # optimizer
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate, epsilon=self.epsilon).minimize(loss)
 
@@ -295,7 +434,7 @@ class Knrm(BaseNN):
                        train_input_q_weights, input_mu, input_sigma, input_train_mask_pos, input_train_mask_neg,
                        sess, o_pos, epoch, loss):
         for filenum in range(len(val_pair_file_path_list)):
-	    output = None
+            output = None
             if (epoch % self.print_frequency == 0):
                 output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", self.model_name, 'valid'+str(filenum), str(epoch+1)), 'w')
             else:
@@ -330,7 +469,7 @@ class Knrm(BaseNN):
                     scoredict[X_val['qid'][num]][X_val['uid'][num]] = (o_p[num][0], Y_val[num])
                     if (output!=None):
                         output.write('%s\t%s\t%s\t%s\n' % (i, X_val['uid'][num], Y_val[num], o_p[num][0]))
-############################################            
+                    ############################################
                     qid = i
                     uid = X_val['uid'][num]
                     label = Y_val[num]
@@ -363,9 +502,9 @@ class Knrm(BaseNN):
                                 loss_y_pred.append([qid_uid_score[qid][hu], qid_uid_score[qid][lu]])
 
             loss_res = cal_eval_loss(loss_y_pred, loss_y_true, 'vald', ['cross_entropy_loss'])
-#################################################            
-            
-            
+            #################################################
+
+
             for q in scoredict.keys():
                 y_pred = []
                 y_label = []
@@ -400,7 +539,7 @@ class Knrm(BaseNN):
                       sess, o_pos, epoch):
         #print test_pair_file_path_list
         for filenum in range(len(test_pair_file_path_list)):
-	    output = None
+            output = None
             if (epoch % self.print_frequency == 0):
                 output = open('../MatchZoo_zyk/output/%s/%s_%s_output_%s.txt' % ("K-NRM", self.model_name, 'test'+str(filenum), str(epoch+1)), 'w')
             else:
@@ -428,7 +567,7 @@ class Knrm(BaseNN):
                     scoredict[X_test['qid'][num]][X_test['uid'][num]] = (o_p[num][0], Y_test[num])
                     if (output!= None):
                         output.write('%s\t%s\t%s\t%s\n' % (i, X_test['uid'][num], Y_test[num], o_p[num][0]))
-                
+
             for q in scoredict.keys():
                 y_pred = []
                 y_label = []
@@ -447,7 +586,7 @@ class Knrm(BaseNN):
             print '[Eval] @ epoch: %d,' % (epoch + 1),
             # print 'valid loss: %.5f' % valid_loss,
             print ', '.join(['%s: %.5f' % (k, metricdict[k] / len(scoredict)) for k in metricdict])
-    
+
 def cal_cross_entropy_loss(y_true, y_pred, from_logits=False):
     if from_logits:
         exp_y_pred = np.exp(y_pred)
@@ -512,8 +651,9 @@ if __name__ == '__main__':
         nn.train(train_size=args.train_size,
                  #checkpoint_dir=args.checkpoint_dir,
                  load_model=args.load_model)
-        # else:
-        #     nn = Knrm(config=conf)
+    else:
+        nn = Knrm(config=conf)
+        nn.test(load_model=True)
         #     nn.test(test_point_file_path=args.test_file,
         #             test_size=args.test_size,
         #             output_file_path=args.output_score_file,
